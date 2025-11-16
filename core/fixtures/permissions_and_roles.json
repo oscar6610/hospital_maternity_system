@@ -1,0 +1,834 @@
+[
+  {
+    "model": "core.permiso",
+    "pk": 1,
+    "fields": {
+      "codigo_permiso": "catalog:read",
+      "nombre_permiso": "Consultar Catálogos",
+      "descripcion": "Permiso para consultar listas estandarizadas como Grupos de Robson o complicaciones.",
+      "categoria": "catalog",
+      "activo": true
+    }
+  },
+  {
+    "model": "core.permiso",
+    "pk": 2,
+    "fields": {
+      "codigo_permiso": "catalog:manage",
+      "nombre_permiso": "Gestionar Catálogos",
+      "descripcion": "Permiso para crear, modificar o eliminar clasificaciones estandarizadas.",
+      "categoria": "catalog",
+      "activo": true
+    }
+  },
+  {
+    "model": "core.permiso",
+    "pk": 3,
+    "fields": {
+      "codigo_permiso": "maternity:mother:create",
+      "nombre_permiso": "Crear Madre Paciente",
+      "descripcion": "Registrar nuevos ingresos de madres.",
+      "categoria": "maternity",
+      "activo": true
+    }
+  },
+  {
+    "model": "core.permiso",
+    "pk": 4,
+    "fields": {
+      "codigo_permiso": "maternity:mother:read",
+      "nombre_permiso": "Consultar Madre Paciente",
+      "descripcion": "Consultar antecedentes y datos de la paciente.",
+      "categoria": "maternity",
+      "activo": true
+    }
+  },
+  {
+    "model": "core.permiso",
+    "pk": 5,
+    "fields": {
+      "codigo_permiso": "maternity:mother:update",
+      "nombre_permiso": "Actualizar Madre Paciente",
+      "descripcion": "Modificar datos demográficos o antecedentes.",
+      "categoria": "maternity",
+      "activo": true
+    }
+  },
+  {
+    "model": "core.permiso",
+    "pk": 6,
+    "fields": {
+      "codigo_permiso": "maternity:delivery:create",
+      "nombre_permiso": "Registrar Parto",
+      "descripcion": "Registrar un nuevo evento de parto.",
+      "categoria": "maternity",
+      "activo": true
+    }
+  },
+  {
+    "model": "core.permiso",
+    "pk": 7,
+    "fields": {
+      "codigo_permiso": "maternity:delivery:read",
+      "nombre_permiso": "Consultar Parto",
+      "descripcion": "Consultar datos de partos.",
+      "categoria": "maternity",
+      "activo": true
+    }
+  },
+  {
+    "model": "core.permiso",
+    "pk": 8,
+    "fields": {
+      "codigo_permiso": "maternity:delivery:update_own",
+      "nombre_permiso": "Actualizar Parto (Propio/Turno)",
+      "descripcion": "Modificar solo los registros de partos creados por ella o en su turno.",
+      "categoria": "maternity",
+      "activo": true
+    }
+  },
+  {
+    "model": "core.permiso",
+    "pk": 9,
+    "fields": {
+      "codigo_permiso": "maternity:delivery:update_all",
+      "nombre_permiso": "Actualizar Parto (Todos)",
+      "descripcion": "Permiso para modificar cualquier registro de parto sin restricción de turno.",
+      "categoria": "maternity",
+      "activo": true
+    }
+  },
+  {
+    "model": "core.permiso",
+    "pk": 10,
+    "fields": {
+      "codigo_permiso": "maternity:ive:manage",
+      "nombre_permiso": "Gestionar IVE",
+      "descripcion": "Registrar y modificar atenciones de IVE, incluyendo acompañamiento.",
+      "categoria": "maternity",
+      "activo": true
+    }
+  },
+  {
+    "model": "core.permiso",
+    "pk": 11,
+    "fields": {
+      "codigo_permiso": "maternity:complication:manage",
+      "nombre_permiso": "Gestionar Complicaciones",
+      "descripcion": "Registrar complicaciones como HPP o Preeclampsia.",
+      "categoria": "maternity",
+      "activo": true
+    }
+  },
+  {
+    "model": "core.permiso",
+    "pk": 12,
+    "fields": {
+      "codigo_permiso": "maternity:contraceptive:manage",
+      "nombre_permiso": "Gestionar Anticoncepción",
+      "descripcion": "Registrar el método anticonceptivo al alta.",
+      "categoria": "maternity",
+      "activo": true
+    }
+  },
+  {
+    "model": "core.permiso",
+    "pk": 13,
+    "fields": {
+      "codigo_permiso": "neonatal:rn:create",
+      "nombre_permiso": "Registrar Recién Nacido",
+      "descripcion": "Registrar un Recién Nacido.",
+      "categoria": "neonatology",
+      "activo": true
+    }
+  },
+  {
+    "model": "core.permiso",
+    "pk": 14,
+    "fields": {
+      "codigo_permiso": "neonatal:rn:read",
+      "nombre_permiso": "Consultar Recién Nacido",
+      "descripcion": "Consultar el registro del RN y su trazabilidad.",
+      "categoria": "neonatology",
+      "activo": true
+    }
+  },
+  {
+    "model": "core.permiso",
+    "pk": 15,
+    "fields": {
+      "codigo_permiso": "neonatal:rn:update_immediate",
+      "nombre_permiso": "Registrar Datos Inmediatos RN",
+      "descripcion": "Registrar APGAR, contacto piel a piel, y profilaxis.",
+      "categoria": "neonatology",
+      "activo": true
+    }
+  },
+  {
+    "model": "core.permiso",
+    "pk": 16,
+    "fields": {
+      "codigo_permiso": "neonatal:tamizaje:manage",
+      "nombre_permiso": "Gestionar Tamizaje",
+      "descripcion": "Registrar y modificar tamizajes: Metabólico, Auditivo, Cardiopatía.",
+      "categoria": "neonatology",
+      "activo": true
+    }
+  },
+  {
+    "model": "core.permiso",
+    "pk": 17,
+    "fields": {
+      "codigo_permiso": "neonatal:discharge:manage",
+      "nombre_permiso": "Gestionar Alta Neonatal",
+      "descripcion": "Registrar egreso y tipo de alimentación al alta.",
+      "categoria": "neonatology",
+      "activo": true
+    }
+  },
+  {
+    "model": "core.permiso",
+    "pk": 18,
+    "fields": {
+      "codigo_permiso": "report:generate_rem",
+      "nombre_permiso": "Generar Reporte REM",
+      "descripcion": "Único permiso para la generación automática del reporte REM BS22 - Atenciones de Obstetricia y Ginecología.",
+      "categoria": "reports",
+      "activo": true
+    }
+  },
+  {
+    "model": "core.permiso",
+    "pk": 19,
+    "fields": {
+      "codigo_permiso": "report:export_data",
+      "nombre_permiso": "Exportar Datos",
+      "descripcion": "Función simple para exportar la data cruda a Excel.",
+      "categoria": "reports",
+      "activo": true
+    }
+  },
+  {
+    "model": "core.permiso",
+    "pk": 20,
+    "fields": {
+      "codigo_permiso": "alert:read",
+      "nombre_permiso": "Visualizar Alertas",
+      "descripcion": "Visualizar alertas de datos incompletos o críticos.",
+      "categoria": "alerts",
+      "activo": true
+    }
+  },
+  {
+    "model": "core.permiso",
+    "pk": 21,
+    "fields": {
+      "codigo_permiso": "alert:resolve",
+      "nombre_permiso": "Resolver Alertas",
+      "descripcion": "Marcar alertas como resueltas.",
+      "categoria": "alerts",
+      "activo": true
+    }
+  },
+  {
+    "model": "core.permiso",
+    "pk": 22,
+    "fields": {
+      "codigo_permiso": "compliance:audit:read",
+      "nombre_permiso": "Consultar Auditoría",
+      "descripcion": "Consultar el registro de auditoría de acciones, esencial para la seguridad.",
+      "categoria": "compliance",
+      "activo": true
+    }
+  },
+  {
+    "model": "core.permiso",
+    "pk": 23,
+    "fields": {
+      "codigo_permiso": "core:user:manage",
+      "nombre_permiso": "Gestionar Usuarios",
+      "descripcion": "Crear, editar y eliminar usuarios.",
+      "categoria": "core",
+      "activo": true
+    }
+  },
+  {
+    "model": "core.permiso",
+    "pk": 24,
+    "fields": {
+      "codigo_permiso": "core:role:manage",
+      "nombre_permiso": "Gestionar Roles",
+      "descripcion": "Administrar roles, perfiles y permisos de RBAC.",
+      "categoria": "core",
+      "activo": true
+    }
+  },
+  {
+    "model": "core.rol",
+    "pk": 1,
+    "fields": {
+      "nombre_rol": "matrona_clinica",
+      "descripcion": "Matrona Clínica - Responsable de registrar datos del parto y recién nacido. Solo puede modificar registros de su turno."
+    }
+  },
+  {
+    "model": "core.rol",
+    "pk": 2,
+    "fields": {
+      "nombre_rol": "supervisor_jefe",
+      "descripcion": "Supervisor/Jefe de Área - Acceso completo a todos los datos, consulta reportes y estadísticas."
+    }
+  },
+  {
+    "model": "core.rol",
+    "pk": 3,
+    "fields": {
+      "nombre_rol": "medico",
+      "descripcion": "Médico(a) - Consulta información clínica y actualiza estados de salud. Responsable de gestión de complicaciones."
+    }
+  },
+  {
+    "model": "core.rol",
+    "pk": 4,
+    "fields": {
+      "nombre_rol": "enfermero",
+      "descripcion": "Enfermero(a) - Registra procedimientos y administración de medicamentos, enfocándose en atención inmediata y tamizajes."
+    }
+  },
+  {
+    "model": "core.rol",
+    "pk": 5,
+    "fields": {
+      "nombre_rol": "administrativo",
+      "descripcion": "Administrativo(a) - Gestiona datos de ingreso de la madre y coordina el proceso de alta."
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 1,
+    "fields": {
+      "fk_rol": 1,
+      "fk_permiso": 1
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 2,
+    "fields": {
+      "fk_rol": 1,
+      "fk_permiso": 3
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 3,
+    "fields": {
+      "fk_rol": 1,
+      "fk_permiso": 4
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 4,
+    "fields": {
+      "fk_rol": 1,
+      "fk_permiso": 5
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 5,
+    "fields": {
+      "fk_rol": 1,
+      "fk_permiso": 6
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 6,
+    "fields": {
+      "fk_rol": 1,
+      "fk_permiso": 7
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 7,
+    "fields": {
+      "fk_rol": 1,
+      "fk_permiso": 8
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 8,
+    "fields": {
+      "fk_rol": 1,
+      "fk_permiso": 10
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 9,
+    "fields": {
+      "fk_rol": 1,
+      "fk_permiso": 11
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 10,
+    "fields": {
+      "fk_rol": 1,
+      "fk_permiso": 12
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 11,
+    "fields": {
+      "fk_rol": 1,
+      "fk_permiso": 13
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 12,
+    "fields": {
+      "fk_rol": 1,
+      "fk_permiso": 14
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 13,
+    "fields": {
+      "fk_rol": 1,
+      "fk_permiso": 15
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 14,
+    "fields": {
+      "fk_rol": 1,
+      "fk_permiso": 16
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 15,
+    "fields": {
+      "fk_rol": 1,
+      "fk_permiso": 17
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 16,
+    "fields": {
+      "fk_rol": 1,
+      "fk_permiso": 20
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 17,
+    "fields": {
+      "fk_rol": 2,
+      "fk_permiso": 1
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 18,
+    "fields": {
+      "fk_rol": 2,
+      "fk_permiso": 2
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 19,
+    "fields": {
+      "fk_rol": 2,
+      "fk_permiso": 3
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 20,
+    "fields": {
+      "fk_rol": 2,
+      "fk_permiso": 4
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 21,
+    "fields": {
+      "fk_rol": 2,
+      "fk_permiso": 5
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 22,
+    "fields": {
+      "fk_rol": 2,
+      "fk_permiso": 6
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 23,
+    "fields": {
+      "fk_rol": 2,
+      "fk_permiso": 7
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 24,
+    "fields": {
+      "fk_rol": 2,
+      "fk_permiso": 9
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 25,
+    "fields": {
+      "fk_rol": 2,
+      "fk_permiso": 10
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 26,
+    "fields": {
+      "fk_rol": 2,
+      "fk_permiso": 11
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 27,
+    "fields": {
+      "fk_rol": 2,
+      "fk_permiso": 12
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 28,
+    "fields": {
+      "fk_rol": 2,
+      "fk_permiso": 13
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 29,
+    "fields": {
+      "fk_rol": 2,
+      "fk_permiso": 14
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 30,
+    "fields": {
+      "fk_rol": 2,
+      "fk_permiso": 15
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 31,
+    "fields": {
+      "fk_rol": 2,
+      "fk_permiso": 16
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 32,
+    "fields": {
+      "fk_rol": 2,
+      "fk_permiso": 17
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 33,
+    "fields": {
+      "fk_rol": 2,
+      "fk_permiso": 18
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 34,
+    "fields": {
+      "fk_rol": 2,
+      "fk_permiso": 19
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 35,
+    "fields": {
+      "fk_rol": 2,
+      "fk_permiso": 20
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 36,
+    "fields": {
+      "fk_rol": 2,
+      "fk_permiso": 21
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 37,
+    "fields": {
+      "fk_rol": 2,
+      "fk_permiso": 22
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 38,
+    "fields": {
+      "fk_rol": 2,
+      "fk_permiso": 23
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 39,
+    "fields": {
+      "fk_rol": 2,
+      "fk_permiso": 24
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 40,
+    "fields": {
+      "fk_rol": 3,
+      "fk_permiso": 1
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 41,
+    "fields": {
+      "fk_rol": 3,
+      "fk_permiso": 4
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 42,
+    "fields": {
+      "fk_rol": 3,
+      "fk_permiso": 5
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 43,
+    "fields": {
+      "fk_rol": 3,
+      "fk_permiso": 7
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 44,
+    "fields": {
+      "fk_rol": 3,
+      "fk_permiso": 9
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 45,
+    "fields": {
+      "fk_rol": 3,
+      "fk_permiso": 11
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 46,
+    "fields": {
+      "fk_rol": 3,
+      "fk_permiso": 12
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 47,
+    "fields": {
+      "fk_rol": 3,
+      "fk_permiso": 14
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 48,
+    "fields": {
+      "fk_rol": 3,
+      "fk_permiso": 16
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 49,
+    "fields": {
+      "fk_rol": 3,
+      "fk_permiso": 17
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 50,
+    "fields": {
+      "fk_rol": 3,
+      "fk_permiso": 20
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 51,
+    "fields": {
+      "fk_rol": 4,
+      "fk_permiso": 1
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 52,
+    "fields": {
+      "fk_rol": 4,
+      "fk_permiso": 4
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 53,
+    "fields": {
+      "fk_rol": 4,
+      "fk_permiso": 7
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 54,
+    "fields": {
+      "fk_rol": 4,
+      "fk_permiso": 14
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 55,
+    "fields": {
+      "fk_rol": 4,
+      "fk_permiso": 15
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 56,
+    "fields": {
+      "fk_rol": 4,
+      "fk_permiso": 16
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 57,
+    "fields": {
+      "fk_rol": 4,
+      "fk_permiso": 17
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 58,
+    "fields": {
+      "fk_rol": 4,
+      "fk_permiso": 20
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 59,
+    "fields": {
+      "fk_rol": 5,
+      "fk_permiso": 1
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 60,
+    "fields": {
+      "fk_rol": 5,
+      "fk_permiso": 3
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 61,
+    "fields": {
+      "fk_rol": 5,
+      "fk_permiso": 4
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 62,
+    "fields": {
+      "fk_rol": 5,
+      "fk_permiso": 5
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 63,
+    "fields": {
+      "fk_rol": 5,
+      "fk_permiso": 7
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 64,
+    "fields": {
+      "fk_rol": 5,
+      "fk_permiso": 14
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 65,
+    "fields": {
+      "fk_rol": 5,
+      "fk_permiso": 17
+    }
+  },
+  {
+    "model": "core.rolpermiso",
+    "pk": 66,
+    "fields": {
+      "fk_rol": 5,
+      "fk_permiso": 20
+    }
+  }
+]
