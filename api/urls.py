@@ -1,6 +1,4 @@
-from django.urls import path, include
-from .routers import router
+from .routers import urlpatterns
 
-urlpatterns = [
-    path('', include(router.urls)),
-]
+# urlpatterns se importa directamente del router
+# que ahora incluye tanto los viewsets como las rutas de autenticación

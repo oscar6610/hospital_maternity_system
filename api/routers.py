@@ -1,4 +1,7 @@
+from django.urls import path
 from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import TokenRefreshView
+from core.views import CustomTokenObtainPairView
 from .viewsets import (
     # Core
     UsuarioViewSet, RolViewSet, PermisoViewSet, RolPermisoViewSet,
@@ -61,3 +64,12 @@ router.register(r'alerts/alertas', AlertaSistemaViewSet, basename='alerta-sistem
 # ============ REPORTS ============
 router.register(r'reports/reportes-rem', ReporteREMViewSet, basename='reporte-rem')
 router.register(r'reports/reportes-rem-detalles', ReporteREMDetalleViewSet, basename='reporte-rem-detalle')
+
+# ============ AUTHENTICATION (JWT) ============
+auth_urls = [
+    path('auth/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+]
+
+# Combinar URLs de autenticación con el router
+urlpatterns = auth_urls + router.urls

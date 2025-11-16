@@ -1,9 +1,15 @@
-from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
+from rest_framework import viewsets, status
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
 
 # Core
 from core.models import Usuario, Rol, Permiso, RolPermiso
-from core.serializers import UsuarioSerializer, RolSerializer, PermisoSerializer, RolPermisoSerializer
+from core.serializers import (
+    UsuarioSerializer, RolSerializer, PermisoSerializer, RolPermisoSerializer,
+    LoginSerializer, ChangePasswordSerializer, UsuarioProfileSerializer
+)
 
 # Catalogs
 from catalogs.models import CatNacionalidad, CatPuebloOriginario, CatComplicacionParto, CatRobson, CatTipoParto
@@ -35,6 +41,33 @@ class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.all()
     serializer_class = UsuarioSerializer
     permission_classes = [IsAuthenticated]
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def me(self, request):
+        """Obtener perfil del usuario autenticado"""
+        serializer = UsuarioProfileSerializer(request.user)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def change_password(self, request):
+        """Cambiar contraseña del usuario autenticado"""
+        serializer = ChangePasswordSerializer(data=request.data)
+        if serializer.is_valid():
+            user = request.user
+            if not user.check_password(serializer.validated_data['old_password']):
+                return Response(
+                    {'old_password': 'Contraseña incorrecta'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            user.set_password(serializer.validated_data['new_password'])
+            user.save()
+            return Response({'detail': 'Contraseña actualizada exitosamente'}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def logout(self, request):
+        """Logout - simplemente retorna un mensaje confirmando logout"""
+        return Response({'detail': 'Logout exitoso'}, status=status.HTTP_200_OK)
 
 
 class RolViewSet(viewsets.ModelViewSet):
