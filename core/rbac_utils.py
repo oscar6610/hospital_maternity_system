@@ -1,5 +1,6 @@
 """
 Utilidades para el sistema RBAC: decoradores, mixins y funciones de permiso.
+VERSIÓN CORREGIDA - Noviembre 2025
 """
 from functools import wraps
 from django.core.exceptions import PermissionDenied
@@ -16,8 +17,20 @@ class RBACPermission(BasePermission):
     Permiso DRF para validar permisos basados en RBAC.
     
     Uso en ViewSet:
-        permission_classes = [RBACPermission]
+        permission_classes = [IsAuthenticated, RBACPermission]
         required_permission = 'maternity:mother:read'
+        
+        # O con permisos dinámicos:
+        def get_required_permission(self):
+            if self.action == 'create':
+                return 'maternity:mother:create'
+            elif self.action in ['update', 'partial_update']:
+                return 'maternity:mother:update'
+            return 'maternity:mother:read'
+        
+        def check_permissions(self, request):
+            self.required_permission = self.get_required_permission()
+            super().check_permissions(request)
     """
     
     def has_permission(self, request, view):
@@ -31,16 +44,33 @@ class RBACPermission(BasePermission):
         # Obtener el permiso requerido del viewset
         required_permission = getattr(view, 'required_permission', None)
         if not required_permission:
-            return True  # Si no hay permiso requerido, permitir
+            # Si no hay permiso requerido, permitir (para retrocompatibilidad)
+            logger.warning(f"ViewSet {view.__class__.__name__} no tiene required_permission definido")
+            return True
         
         # Verificar si el usuario tiene el permiso
-        return tiene_permiso(request.user, required_permission)
+        has_perm = tiene_permiso(request.user, required_permission)
+        
+        if not has_perm:
+            logger.warning(
+                f"Usuario {request.user.run} ({request.user.fk_rol.nombre_rol if request.user.fk_rol else 'sin rol'}) "
+                f"intentó acceder a {required_permission} - DENEGADO"
+            )
+        
+        return has_perm
 
 
 class RBACObjectPermission(BasePermission):
     """
     Permiso DRF para validar permisos a nivel de objeto.
     Útil para restricciones de turno en Matronas.
+    
+    Uso en ViewSet:
+        permission_classes = [IsAuthenticated, RBACObjectPermission]
+        
+        def validar_permiso_objeto(self, usuario, obj):
+            # Tu lógica personalizada
+            return puede_modificar_registro_turno(usuario, obj)
     """
     
     def has_object_permission(self, request, view, obj):
@@ -74,9 +104,17 @@ def tiene_permiso(usuario, codigo_permiso):
         return True
     
     if not usuario.fk_rol:
+        logger.warning(f"Usuario {usuario.run} no tiene rol asignado")
         return False
     
-    return usuario.fk_rol.permisos.filter(codigo_permiso=codigo_permiso, activo=True).exists()
+    # ✅ CORRECCIÓN: Buscar en RolPermiso correctamente
+    from core.models import RolPermiso
+    
+    return RolPermiso.objects.filter(
+        fk_rol=usuario.fk_rol,
+        fk_permiso__codigo_permiso=codigo_permiso,
+        fk_permiso__activo=True
+    ).exists()
 
 
 def requiere_permiso(codigo_permiso):
@@ -129,7 +167,6 @@ def registrar_auditoria(usuario, tipo_accion, tabla_afectada, id_registro,
         descripcion: Descripción adicional
     """
     try:
-        # Importar localmente para evitar ciclos de importación entre apps
         from compliance.models import TrazaMovimiento
 
         TrazaMovimiento.objects.create(
@@ -199,37 +236,45 @@ def puede_modificar_registro_turno(usuario, registro):
     if usuario.is_superuser or usuario_es_supervisor(usuario):
         return True
     
-    # Si no es Matrona, usar lógica específica
+    # Si no es Matrona, usar lógica específica del rol
     if not usuario_es_matrona(usuario):
         return False
     
     # Verificar si la Matrona tiene una restricción de turno vigente
     try:
-        restriccion = usuario.restriccion_turno
-        if restriccion.es_vigente:
-            # La Matrona solo puede modificar registros que ella creó
-            # o registros creados en su turno
-            if hasattr(registro, 'fk_usuario_registro'):
-                return registro.fk_usuario_registro == usuario
-            # Si el registro tiene fk_usuario_creacion
-            elif hasattr(registro, 'fk_usuario_creacion'):
-                return registro.fk_usuario_creacion == usuario
-            # Fallback: revisar fecha_creacion
-            elif hasattr(registro, 'fecha_creacion'):
-                from django.utils import timezone
-                fecha_creacion = timezone.make_aware(
-                    timezone.datetime.combine(
-                        timezone.now().date(),
-                        timezone.datetime.min.time()
-                    )
-                ) if not hasattr(registro.fecha_creacion, 'tzinfo') else registro.fecha_creacion
-                
-                turno_inicio, turno_fin = obtener_horario_turno(restriccion.turno)
-                fecha_hoy = timezone.now().date()
-                
-                if fecha_creacion.date() == fecha_hoy:
-                    hora_creacion = fecha_creacion.time()
-                    return turno_inicio <= hora_creacion < turno_fin
+        from core.models import RestriccionTurno
+        
+        restriccion = RestriccionTurno.objects.filter(
+            fk_matrona=usuario,
+            activo=True
+        ).first()
+        
+        if not restriccion or not restriccion.es_vigente:
+            # Sin restricción vigente, puede modificar
+            return True
+        
+        # La Matrona solo puede modificar registros que ella creó
+        # o registros creados en su turno
+        if hasattr(registro, 'fk_usuario_registro'):
+            return registro.fk_usuario_registro == usuario
+        elif hasattr(registro, 'fk_usuario_creacion'):
+            return registro.fk_usuario_creacion == usuario
+        elif hasattr(registro, 'fk_profesional_responsable'):
+            return registro.fk_profesional_responsable == usuario
+        # Fallback: revisar fecha_creacion
+        elif hasattr(registro, 'fecha_registro'):
+            from django.utils import timezone
+            fecha_registro = registro.fecha_registro
+            
+            if not hasattr(fecha_registro, 'tzinfo') or fecha_registro.tzinfo is None:
+                fecha_registro = timezone.make_aware(fecha_registro)
+            
+            turno_inicio, turno_fin = obtener_horario_turno(restriccion.turno)
+            fecha_hoy = timezone.now().date()
+            
+            if fecha_registro.date() == fecha_hoy:
+                hora_registro = fecha_registro.time()
+                return turno_inicio <= hora_registro < turno_fin
     except Exception as e:
         logger.error(f"Error verificando restricción de turno: {e}")
     
@@ -247,8 +292,8 @@ def obtener_horario_turno(turno):
     
     horarios = {
         'MATUTINO': (time(8, 0), time(16, 0)),
-        'VESPERTINO': (time(16, 0), time(0, 0)),  # Hasta medianoche, luego toca nocturno
+        'VESPERTINO': (time(16, 0), time(0, 0)),
         'NOCTURNO': (time(0, 0), time(8, 0)),
     }
     
-    return horarios.get(turno, (time(0, 0), time(0, 0)))
+    return horarios.get(turno, (time(0, 0), time(23, 59)))
