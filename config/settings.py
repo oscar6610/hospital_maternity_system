@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     # Third party apps
     'rest_framework',
     'corsheaders',
+    'drf_spectacular',
     
     # Local apps
     'core',
@@ -157,6 +158,8 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,
+    # ← AGREGAR ESTA LÍNEA
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 # JWT Configuration
@@ -180,3 +183,94 @@ SIMPLE_JWT = {
 
 # CORS
 CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=False, cast=bool)
+
+
+# ============================================
+# SPECTACULAR SETTINGS - Nueva sección
+# ============================================
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Hospital Maternity System API',
+    'DESCRIPTION': """
+    Sistema de gestión hospitalaria para el registro y seguimiento de partos, 
+    recién nacidos y generación de reportes REM (Reporte Estadístico Mensual).
+    
+    ## Características principales:
+    - **Autenticación JWT** con tokens de acceso y refresh
+    - **Sistema RBAC** (Role-Based Access Control) con 5 roles y 24 permisos
+    - **Gestión de Maternidad**: Madres, embarazos, partos, IVE
+    - **Gestión de Neonatología**: Recién nacidos, tamizajes, egresos
+    - **Auditoría completa** de todas las acciones
+    - **Reportes REM** automatizados
+    
+    ## Roles del sistema:
+    - **Matrona Clínica**: Registro de partos y RN (con restricción de turno)
+    - **Supervisor/Jefe**: Acceso completo y gestión de reportes
+    - **Médico(a)**: Consulta clínica y gestión de complicaciones
+    - **Enfermero(a)**: Registro de procedimientos y tamizajes
+    - **Administrativo(a)**: Gestión de ingresos y altas
+    
+    ## Autenticación:
+    1. Obtener tokens: `POST /api/auth/token/` con `run` y `password`
+    2. Usar el access token en header: `Authorization: Bearer {token}`
+    3. Refrescar token: `POST /api/auth/token/refresh/` con el refresh token
+    """,
+    'VERSION': '2.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    
+    # Información de contacto y licencia
+    'CONTACT': {
+        'name': 'Equipo de Desarrollo',
+        'email': 'dev@hospital.com',
+    },
+    'LICENSE': {
+        'name': 'Privado - Todos los derechos reservados',
+    },
+    
+    # Configuración de seguridad (JWT)
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'http',
+            'scheme': 'bearer',
+            'bearerFormat': 'JWT',
+        }
+    },
+    'SECURITY': [{'Bearer': []}],
+    
+    # Configuración de tags (agrupación en la UI)
+    'TAGS': [
+        {'name': 'Auth', 'description': 'Autenticación y gestión de tokens JWT'},
+        {'name': 'Usuarios', 'description': 'Gestión de usuarios y perfiles'},
+        {'name': 'Roles & Permisos', 'description': 'Sistema RBAC: roles, permisos y asignaciones'},
+        {'name': 'Catálogos', 'description': 'Listas estandarizadas (nacionalidades, tipos de parto, etc.)'},
+        {'name': 'Maternidad', 'description': 'Gestión de madres, embarazos, partos e IVE'},
+        {'name': 'Neonatología', 'description': 'Gestión de recién nacidos, tamizajes y egresos'},
+        {'name': 'Auditoría', 'description': 'Trazabilidad de acciones del sistema'},
+        {'name': 'Alertas', 'description': 'Sistema de alertas y notificaciones'},
+        {'name': 'Reportes', 'description': 'Generación de reportes REM'},
+    ],
+    
+    # Configuración de componentes
+    'COMPONENT_SPLIT_REQUEST': True,
+    'COMPONENT_NO_READ_ONLY_REQUIRED': True,
+    
+    # Configuración de Swagger UI
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+        'persistAuthorization': True,
+        'displayOperationId': True,
+        'filter': True,
+        'tryItOutEnabled': True,
+        'syntaxHighlight.theme': 'monokai',
+    },
+    
+    # Configuración de ReDoc
+    'REDOC_UI_SETTINGS': {
+        'hideDownloadButton': False,
+        'expandResponses': '200,201',
+        'pathInMiddlePanel': True,
+    },
+    
+    # Ordenamiento de endpoints
+    'SORT_OPERATIONS': True,
+    'SORT_OPERATION_PARAMETERS': True,
+}

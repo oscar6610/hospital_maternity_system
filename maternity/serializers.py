@@ -93,8 +93,8 @@ class PartoDetailSerializer(serializers.ModelSerializer):
     tipo_parto_nombre = serializers.CharField(source='fk_tipo_parto.nombre', read_only=True)
     profesional_nombre = serializers.CharField(source='fk_profesional_responsable.nombre_completo', read_only=True)
     clasificacion_robson_grupo = serializers.CharField(source='fk_clasificacion_robson.grupo', read_only=True)
-    complicaciones = PartoComplicacionSerializer(source='complicaciones', many=True, read_only=True)
-    anestesias = PartoAnestesiaSerializer(source='anestesias', many=True, read_only=True)
+    complicaciones = PartoComplicacionSerializer( many=True, read_only=True)
+    anestesias = PartoAnestesiaSerializer(many=True, read_only=True)
     tuvo_complicaciones = serializers.SerializerMethodField()
     
     class Meta:
@@ -148,7 +148,7 @@ class IVEAtencionDetailSerializer(serializers.ModelSerializer):
     """Serializador detallado para IVE con acompañamientos anidados."""
     madre_nombre = serializers.CharField(source='fk_madre.nombre', read_only=True)
     madre_run = serializers.CharField(source='fk_madre.run', read_only=True)
-    acompañamientos = IVEAcompanamientoSerializer(source='acompañamientos', many=True, read_only=True)
+    acompañamientos = IVEAcompanamientoSerializer(many=True, read_only=True)
     
     class Meta:
         model = IVEAtencion
