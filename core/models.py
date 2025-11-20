@@ -1,7 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager, Group
 from django.utils.translation import gettext_lazy as _
+from django.core.exceptions import ValidationError
 from django.utils import timezone
+from .utils import validar_run
 
 
 class UsuarioManager(BaseUserManager):
@@ -10,6 +12,9 @@ class UsuarioManager(BaseUserManager):
     def _create_user(self, run, email, password, **extra_fields):
         if not run:
             raise ValueError('El run debe ser proporcionado')
+        # Validar formato y dígito verificador del RUN antes de crear
+        if not validar_run(run):
+            raise ValueError('El run proporcionado no es válido')
         email = self.normalize_email(email)
         user = self.model(run=run, email=email, **extra_fields)
         user.set_password(password)
@@ -87,6 +92,11 @@ class Usuario(AbstractUser):
 
     def __str__(self):
         return f"{self.nombre_completo} ({self.run})"
+
+    def clean(self):
+        """Validación a nivel de modelo para asegurar RUN válido en admin y forms."""
+        if self.run and not validar_run(self.run):
+            raise ValidationError({'run': 'El run ingresado no es válido.'})
 
 
 class Permiso(models.Model):

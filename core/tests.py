@@ -3,6 +3,7 @@ from rest_framework.test import APIClient, APITestCase
 from rest_framework import status
 from django.contrib.auth import get_user_model
 from .models import Rol, Permiso, RolPermiso
+from django.core.exceptions import ValidationError
 
 Usuario = get_user_model()
 
@@ -52,6 +53,16 @@ class UsuarioModelTest(TestCase):
                 email='doctor2@hospital.com',
                 password='testpass123',
                 nombre_completo='Dr. Carlos López'
+            )
+
+    def test_create_user_invalid_run_raises(self):
+        """Intentar crear usuario con RUN inválido por manager debe fallar."""
+        with self.assertRaises(ValueError):
+            Usuario.objects.create_user(
+                run='12345678-0',  # DV inválido
+                email='bad@hospital.com',
+                password='testpass123',
+                nombre_completo='Usuario Malo'
             )
     
     def test_email_unique(self):

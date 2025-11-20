@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from .models import Usuario, Rol, Permiso, RolPermiso
+from .utils import validar_run
 
 
 class RolSerializer(serializers.ModelSerializer):
@@ -16,7 +17,14 @@ class UsuarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
         fields = ['id_usuario', 'run', 'nombre_completo', 'fk_rol', 'rol_nombre', 'email', 'password', 'is_active']
-
+    
+    def validate_run(self, value):
+        """Valida que el RUN tenga formato válido y DV correcto."""
+        print('validando run:', value)
+        if not validar_run(value):
+            raise serializers.ValidationError("El RUN ingresado no es válido.")
+        return value
+    
     def create(self, validated_data):
         password = validated_data.pop('password', None)
         user = super().create(validated_data)
