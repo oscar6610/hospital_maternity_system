@@ -26,12 +26,12 @@ class UsuarioAdmin(DjangoUserAdmin):
 
 
 class RolAdmin(admin.ModelAdmin):
-	list_display = ('nombre_rol', 'descripcion_corta', 'cantidad_permisos', 'fecha_creacion')
+	list_display = ('id_rol', 'nombre_rol', 'descripcion_corta', 'cantidad_permisos', 'fecha_creacion')
 	search_fields = ('nombre_rol', 'descripcion')
 	readonly_fields = ('fecha_creacion', 'fecha_actualizacion')
 	fieldsets = (
 		('Información General', {'fields': ('nombre_rol', 'descripcion')}),
-		('Auditoría', {'fields': ('fecha_creacion', 'fecha_actualizacion'), 'classes': ('collapse',)}),
+		('Auditoría', {'fields': ('fecha_creacion', 'fecha_actualizacion'), 'classes': ('collapse',)})
 	)
 	
 	def descripcion_corta(self, obj):

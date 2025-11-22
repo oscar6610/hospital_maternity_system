@@ -46,7 +46,6 @@ INSTALLED_APPS = [
     'drf_spectacular',
     
     # Local apps
-    'core',
     'catalogs',
     'maternity',
     'neonatology',
@@ -54,6 +53,7 @@ INSTALLED_APPS = [
     'alerts',
     'reports',
     'api',
+    'core',
 ]
 
 MIDDLEWARE = [
@@ -184,6 +184,7 @@ SIMPLE_JWT = {
 # CORS
 CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=False, cast=bool)
 
+TEST_RUNNER = 'django.test.runner.DiscoverRunner'
 
 # ============================================
 # SPECTACULAR SETTINGS - Nueva sección

@@ -1,35 +1,44 @@
 def validar_run(run_completo: str) -> bool:
-    """
-    Valida RUN/RUT chileno con formato XXXXXXXX-D
-    Retorna True si es válido, False si no.
-    """
-    run_completo = run_completo.replace(".", "").replace("-", "").lower()
-
-    if len(run_completo) < 2:
+    try:
+        run = run_completo.lower().replace(".", "").replace("-", "")
+        
+        if len(run) < 2:
+            return False
+        
+        cuerpo = run[:-1]
+        dv_ingresado = run[-1]
+        
+        if not cuerpo.isdigit():
+            return False
+        
+        suma = 0
+        multiplicador = 2
+        
+        for d in reversed(cuerpo):
+            suma += int(d) * multiplicador
+            multiplicador = 2 if multiplicador == 7 else multiplicador + 1
+        
+        resto = suma % 11
+        dv = 11 - resto
+        
+        if dv == 11:
+            dv = "0"
+        elif dv == 10:
+            dv = "k"
+        else:
+            dv = str(dv)
+        
+        return dv_ingresado == dv
+    except:
         return False
 
-    cuerpo = run_completo[:-1]
-    dv_ingresado = run_completo[-1]
 
-    if not cuerpo.isdigit():
-        return False
 
-    reversed_digits = map(int, reversed(cuerpo))
-    factors = [2, 3, 4, 5, 6, 7]
-    suma = 0
-    factor_index = 0
+def normalizar_run(run: str) -> str:
+    run_limpio = run.replace(".", "").replace("-", "").lower()
 
-    for d in reversed_digits:
-        suma += d * factors[factor_index]
-        factor_index = (factor_index + 1) % len(factors)
+    if not validar_run(run_limpio):
+        raise ValueError("RUN inválido, no se puede normalizar")
 
-    dv_calculado = 11 - (suma % 11)
+    return f"{run_limpio[:-1]}-{run_limpio[-1]}"
 
-    if dv_calculado == 11:
-        dv_calculado = '0'
-    elif dv_calculado == 10:
-        dv_calculado = 'k'
-    else:
-        dv_calculado = str(dv_calculado)
-
-    return dv_ingresado == dv_calculado

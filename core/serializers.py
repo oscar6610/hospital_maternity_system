@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from .models import Usuario, Rol, Permiso, RolPermiso
-from .utils import validar_run
+from .utils import validar_run, normalizar_run
+
 
 
 class RolSerializer(serializers.ModelSerializer):
@@ -12,19 +13,45 @@ class RolSerializer(serializers.ModelSerializer):
 
 class UsuarioSerializer(serializers.ModelSerializer):
     rol_nombre = serializers.CharField(source='fk_rol.nombre_rol', read_only=True)
-    password = serializers.CharField(write_only=True, required=False)
+    password = serializers.CharField(
+        write_only=True,
+        required=False,  # No requerido para actualizaciones
+        style={'input_type': 'password'}
+    )
+    fk_rol = serializers.PrimaryKeyRelatedField(
+        queryset=Rol.objects.all(),
+        required=False,  # No requerido para actualizaciones
+    )
 
     class Meta:
         model = Usuario
-        fields = ['id_usuario', 'run', 'nombre_completo', 'fk_rol', 'rol_nombre', 'email', 'password', 'is_active']
-    
+        fields = [
+            'id_usuario', 'run', 'nombre_completo', 'fk_rol', 'rol_nombre',
+            'email', 'password', 'is_active'
+        ]
+        read_only_fields = ['run', 'password', 'fk_rol', 'rol_nombre', 'is_active']
+
     def validate_run(self, value):
-        """Valida que el RUN tenga formato válido y DV correcto."""
-        print('validando run:', value)
-        if not validar_run(value):
+        """
+        Normaliza el RUN, valida dígito verificador y evita duplicados.
+        """
+        # Si es una actualización, retornar el valor actual
+        if self.instance is not None:
+            return self.instance.run
+            
+        # Normalizar RUN a formato estándar
+        run_normalizado = normalizar_run(value)
+
+        # Validar matemáticamente
+        if not validar_run(run_normalizado):
             raise serializers.ValidationError("El RUN ingresado no es válido.")
-        return value
-    
+
+        # Verificar duplicados
+        if Usuario.objects.filter(run=run_normalizado).exists():
+            raise serializers.ValidationError("Este RUN ya está registrado.")
+
+        return run_normalizado
+
     def create(self, validated_data):
         password = validated_data.pop('password', None)
         user = super().create(validated_data)
@@ -34,12 +61,18 @@ class UsuarioSerializer(serializers.ModelSerializer):
         return user
 
     def update(self, instance, validated_data):
-        password = validated_data.pop('password', None)
-        user = super().update(instance, validated_data)
-        if password:
-            user.set_password(password)
-            user.save()
-        return user
+        # Remover campos que no deben actualizarse
+        validated_data.pop('run', None)
+        validated_data.pop('password', None)
+        validated_data.pop('fk_rol', None)
+        
+        # Solo permitir actualización de nombre_completo y email
+        allowed_fields = {'nombre_completo', 'email'}
+        for field in list(validated_data.keys()):
+            if field not in allowed_fields:
+                validated_data.pop(field, None)
+        
+        return super().update(instance, validated_data)
 
 
 class PermisoSerializer(serializers.ModelSerializer):

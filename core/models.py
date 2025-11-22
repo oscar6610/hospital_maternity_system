@@ -3,7 +3,7 @@ from django.contrib.auth.models import AbstractUser, BaseUserManager, Group
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from .utils import validar_run
+from .utils import validar_run, normalizar_run
 
 
 class UsuarioManager(BaseUserManager):
@@ -72,12 +72,17 @@ class Rol(models.Model):
 
 
 
+
+
+
 class Usuario(AbstractUser):
     username = None
     id_usuario = models.AutoField(primary_key=True)
     run = models.CharField(max_length=15, unique=True)
     nombre_completo = models.CharField(max_length=100)
-    fk_rol = models.ForeignKey(Rol, on_delete=models.PROTECT, db_column='fk_rol', null=True, blank=True)
+    fk_rol = models.ForeignKey(
+        Rol, on_delete=models.PROTECT, db_column='fk_rol', null=True, blank=True
+    )
     email = models.EmailField(_('email address'), unique=True)
 
     USERNAME_FIELD = 'run'
@@ -94,9 +99,22 @@ class Usuario(AbstractUser):
         return f"{self.nombre_completo} ({self.run})"
 
     def clean(self):
-        """Validación a nivel de modelo para asegurar RUN válido en admin y forms."""
-        if self.run and not validar_run(self.run):
-            raise ValidationError({'run': 'El run ingresado no es válido.'})
+        """Normaliza y valida RUN antes de cualquier operación."""
+        if self.run:
+            # Normalizar el RUN
+            self.run = normalizar_run(self.run)
+
+            # Validar el RUN con tu función
+            if not validar_run(self.run):
+                raise ValidationError({'run': 'El run ingresado no es válido.'})
+
+        super().clean()
+
+    def save(self, *args, **kwargs):
+        """Normaliza RUN antes de guardar siempre."""
+        if self.run:
+            self.run = normalizar_run(self.run)
+        super().save(*args, **kwargs)
 
 
 class Permiso(models.Model):
