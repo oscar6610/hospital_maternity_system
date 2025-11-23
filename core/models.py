@@ -100,11 +100,16 @@ class Usuario(AbstractUser):
 
     def clean(self):
         """Normaliza y valida RUN antes de cualquier operación."""
-        if self.run:
-            # Normalizar el RUN
-            self.run = normalizar_run(self.run)
 
-            # Validar el RUN con tu función
+        if self.run:
+            try:
+                # Intentar normalizar el RUN
+                self.run = normalizar_run(self.run)
+            except ValueError as e:
+                # Capturar el ValueError y convertirlo en ValidationError
+                raise ValidationError({'run': str(e)})
+
+            # Validar el RUN normalizado
             if not validar_run(self.run):
                 raise ValidationError({'run': 'El run ingresado no es válido.'})
 
@@ -115,6 +120,170 @@ class Usuario(AbstractUser):
         if self.run:
             self.run = normalizar_run(self.run)
         super().save(*args, **kwargs)
+    def save(self, *args, **kwargs):
+        """Normaliza RUN antes de guardar siempre."""
+        if self.run:
+            self.run = normalizar_run(self.run)
+        super().save(*args, **kwargs)
+    
+    # ============ NUEVOS MÉTODOS: INTEGRACIÓN CON DJANGO ============
+    
+    def has_perm(self, perm, obj=None):
+        """
+        Override para integrar RBAC custom con sistema de permisos de Django.
+        
+        Permite usar:
+        - user.has_perm('maternity:mother:read')  ← Permisos custom
+        - user.has_perm('maternity.add_madrepaciente')  ← Permisos nativos de Django
+        
+        Args:
+            perm: Código de permiso (custom o nativo)
+            obj: Objeto para permisos a nivel de objeto (opcional)
+        
+        Returns:
+            bool: True si el usuario tiene el permiso
+        """
+        # Superusers tienen todos los permisos
+        if self.is_active and self.is_superuser:
+            return True
+        
+        # Si el usuario no está activo, denegar
+        if not self.is_active:
+            return False
+        
+        # Si es permiso custom (contiene ':'), usar RBAC
+        if ':' in perm:
+            from core.rbac_utils import tiene_permiso
+            return tiene_permiso(self, perm)
+        
+        # Si es permiso nativo de Django, intentar mapear a custom
+        codigo_custom = self._mapear_permiso_nativo(perm)
+        if codigo_custom:
+            from core.rbac_utils import tiene_permiso
+            return tiene_permiso(self, codigo_custom)
+        
+        # Fallback: usar sistema nativo de Django por si acaso
+        return super().has_perm(perm, obj)
+    
+    def has_module_perms(self, app_label):
+        """
+        Verifica si el usuario tiene permisos en un módulo específico.
+        Necesario para que Django Admin funcione correctamente.
+        
+        Args:
+            app_label: Nombre del módulo (ej: 'maternity', 'neonatology')
+        
+        Returns:
+            bool: True si tiene al menos un permiso en ese módulo
+        """
+        # Superusers tienen acceso a todo
+        if self.is_active and self.is_superuser:
+            return True
+        
+        # Si no está activo, denegar
+        if not self.is_active:
+            return False
+        
+        # Verificar si tiene algún permiso del módulo en RBAC
+        if self.fk_rol:
+            return RolPermiso.objects.filter(
+                fk_rol=self.fk_rol,
+                fk_permiso__categoria=app_label,
+                fk_permiso__activo=True
+            ).exists()
+        
+        return False
+    
+    def _mapear_permiso_nativo(self, perm):
+        """
+        Mapea permisos nativos de Django a permisos custom del RBAC.
+        
+        Formato nativo: 'app_label.action_model' (ej: 'maternity.add_madrepaciente')
+        Formato custom: 'categoria:recurso:accion' (ej: 'maternity:mother:create')
+        
+        Args:
+            perm: Permiso nativo de Django
+        
+        Returns:
+            str: Código de permiso custom o None si no hay mapeo
+        """
+        # Diccionario de mapeo: permiso_nativo → permiso_custom
+        MAPEO = {
+            # MATERNITY
+            'maternity.add_madrepaciente': 'maternity:mother:create',
+            'maternity.view_madrepaciente': 'maternity:mother:read',
+            'maternity.change_madrepaciente': 'maternity:mother:update',
+            'maternity.delete_madrepaciente': 'maternity:mother:update',
+            
+            'maternity.add_parto': 'maternity:delivery:create',
+            'maternity.view_parto': 'maternity:delivery:read',
+            'maternity.change_parto': 'maternity:delivery:update_all',
+            'maternity.delete_parto': 'maternity:delivery:update_all',
+            
+            'maternity.add_partocomplicacion': 'maternity:complication:manage',
+            'maternity.view_partocomplicacion': 'maternity:delivery:read',
+            'maternity.change_partocomplicacion': 'maternity:complication:manage',
+            'maternity.delete_partocomplicacion': 'maternity:complication:manage',
+            
+            'maternity.add_iveatencion': 'maternity:ive:manage',
+            'maternity.view_iveatencion': 'maternity:mother:read',
+            'maternity.change_iveatencion': 'maternity:ive:manage',
+            'maternity.delete_iveatencion': 'maternity:ive:manage',
+            
+            # NEONATOLOGY
+            'neonatology.add_reciennacido': 'neonatal:rn:create',
+            'neonatology.view_reciennacido': 'neonatal:rn:read',
+            'neonatology.change_reciennacido': 'neonatal:rn:update_immediate',
+            'neonatology.delete_reciennacido': 'neonatal:rn:update_immediate',
+            
+            'neonatology.add_rntamizajemetabolico': 'neonatal:tamizaje:manage',
+            'neonatology.view_rntamizajemetabolico': 'neonatal:rn:read',
+            'neonatology.change_rntamizajemetabolico': 'neonatal:tamizaje:manage',
+            
+            'neonatology.add_rntamizajeauditivo': 'neonatal:tamizaje:manage',
+            'neonatology.view_rntamizajeauditivo': 'neonatal:rn:read',
+            'neonatology.change_rntamizajeauditivo': 'neonatal:tamizaje:manage',
+            
+            'neonatology.add_rntamizajecardiopatia': 'neonatal:tamizaje:manage',
+            'neonatology.view_rntamizajecardiopatia': 'neonatal:rn:read',
+            'neonatology.change_rntamizajecardiopatia': 'neonatal:tamizaje:manage',
+            
+            'neonatology.add_rnegreso': 'neonatal:discharge:manage',
+            'neonatology.view_rnegreso': 'neonatal:rn:read',
+            'neonatology.change_rnegreso': 'neonatal:discharge:manage',
+            
+            # CATALOGS
+            'catalogs.add_catnacionalidad': 'catalog:manage',
+            'catalogs.view_catnacionalidad': 'catalog:read',
+            'catalogs.change_catnacionalidad': 'catalog:manage',
+            'catalogs.delete_catnacionalidad': 'catalog:manage',
+            
+            # CORE
+            'core.add_usuario': 'core:user:manage',
+            'core.view_usuario': 'core:user:manage',
+            'core.change_usuario': 'core:user:manage',
+            'core.delete_usuario': 'core:user:manage',
+            
+            'core.add_rol': 'core:role:manage',
+            'core.view_rol': 'core:role:manage',
+            'core.change_rol': 'core:role:manage',
+            'core.delete_rol': 'core:role:manage',
+            
+            # COMPLIANCE
+            'compliance.view_trazamovimiento': 'compliance:audit:read',
+            
+            # ALERTS
+            'alerts.view_alertasistema': 'alert:read',
+            'alerts.change_alertasistema': 'alert:resolve',
+            
+            # REPORTS
+            'reports.add_reporterem': 'report:generate_rem',
+            'reports.view_reporterem': 'report:generate_rem',
+        }
+        
+        return MAPEO.get(perm)
+    
+    # ============ FIN NUEVOS MÉTODOS ============
 
 
 class Permiso(models.Model):

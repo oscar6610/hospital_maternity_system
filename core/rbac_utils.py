@@ -41,21 +41,41 @@ class RBACPermission(BasePermission):
         if request.user.is_superuser:
             return True
         
-        # Obtener el permiso requerido del viewset
+        # Obtener el permiso requerido del viewset  
         required_permission = getattr(view, 'required_permission', None)
         if not required_permission:
-            # Si no hay permiso requerido, permitir (para retrocompatibilidad)
-            logger.warning(f"ViewSet {view.__class__.__name__} no tiene required_permission definido")
-            return True
+            # SEGURIDAD: Denegar acceso si no hay permiso definido
+            logger.error(
+                f"🚨 SEGURIDAD: ViewSet {view.__class__.__name__} no tiene required_permission definido - DENEGANDO ACCESO"
+            )
+            
+            return False  # ← CAMBIADO: Denegar por defecto
         
         # Verificar si el usuario tiene el permiso
         has_perm = tiene_permiso(request.user, required_permission)
         
         if not has_perm:
+            # Log de advertencia
+            rol_nombre = request.user.fk_rol.nombre_rol if request.user.fk_rol else 'sin rol'
             logger.warning(
-                f"Usuario {request.user.run} ({request.user.fk_rol.nombre_rol if request.user.fk_rol else 'sin rol'}) "
-                f"intentó acceder a {required_permission} - DENEGADO"
+                f"❌ ACCESO DENEGADO: Usuario {request.user.run} ({rol_nombre}) "
+                f"intentó acceder a {view.__class__.__name__} - Permiso requerido: {required_permission}"
             )
+            
+            # Registrar en auditoría
+            try:
+                registrar_auditoria(
+                    usuario=request.user,
+                    tipo_accion='PERMISSION_DENIED',
+                    tabla_afectada=view.__class__.__name__,
+                    id_registro= None,
+                    descripcion=f'Permiso requerido: {required_permission} | Rol actual: {rol_nombre}',
+                    ip_address=obtener_ip_cliente(request),
+                    user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
+                    resultado='FAILED'
+                )
+            except Exception as e:
+                logger.error(f"Error al registrar auditoría de denegación: {e}")
         
         return has_perm
 

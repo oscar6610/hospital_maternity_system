@@ -66,17 +66,54 @@ class UsuarioSerializer(serializers.ModelSerializer):
         return user
 
     def update(self, instance, validated_data):
-        # Remover campos que no deben actualizarse
-        validated_data.pop('run', None)
-        validated_data.pop('password', None)
-        validated_data.pop('fk_rol', None)
+        """
+        Actualización controlada de usuarios.
         
-        # Solo permitir actualización de nombre_completo y email
-        allowed_fields = {'nombre_completo', 'email'}
+        Reglas:
+        - RUN nunca se puede cambiar (ya validado)
+        - Password no se cambia aquí (usar change_password endpoint)
+        - Rol solo lo puede cambiar quien tenga 'core:user:manage'
+        - Otros campos: solo nombre_completo y email
+        """
+        # Obtener el request del contexto
+        request = self.context.get('request')
+        
+        # VALIDACIÓN: Cambio de rol requiere permiso especial
+        if 'fk_rol' in validated_data:
+            # Importar aquí para evitar dependencias circulares
+            from core.rbac_utils import tiene_permiso
+            
+            # Verificar si el usuario tiene permiso para gestionar usuarios
+            if not tiene_permiso(request.user, 'core:user:manage'):
+                raise serializers.ValidationError({
+                    'fk_rol': 'No tienes permiso para cambiar roles de usuario. Se requiere: core:user:manage'
+                })
+            
+            # Si está cambiando su propio rol, advertir pero permitir (para superusers)
+            if instance.id_usuario == request.user.id_usuario and not request.user.is_superuser:
+                raise serializers.ValidationError({
+                    'fk_rol': 'No puedes cambiar tu propio rol'
+                })
+        else:
+            # Si NO viene fk_rol en la petición, removerlo de validated_data
+            validated_data.pop('fk_rol', None)
+        
+        # Remover campos que NUNCA deben actualizarse aquí
+        validated_data.pop('run', None)  # RUN es inmutable
+        validated_data.pop('password', None)  # Password tiene su propio endpoint
+        validated_data.pop('is_active', None)  # is_active requiere permiso especial
+        validated_data.pop('is_staff', None)  # is_staff requiere permiso especial
+        validated_data.pop('is_superuser', None)  # is_superuser solo admin puede cambiar
+        
+        # Campos permitidos para actualización normal
+        allowed_fields = {'nombre_completo', 'email', 'fk_rol'}
+        
+        # Remover campos no permitidos
         for field in list(validated_data.keys()):
             if field not in allowed_fields:
                 validated_data.pop(field, None)
         
+        # Ejecutar actualización
         return super().update(instance, validated_data)
 
 

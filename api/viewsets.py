@@ -81,11 +81,16 @@ class UsuarioViewSet(viewsets.ModelViewSet):
     @extend_schema(tags=['Usuarios'], summary='Mi perfil', description='Obtiene perfil del usuario autenticado')
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def me(self, request):
+        if request.user.is_anonymous:
+            return Response(
+                {"detail": "Authentication credentials were not provided."},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
         serializer = UsuarioProfileSerializer(request.user)
         return Response(serializer.data)
 
     @extend_schema(tags=['Usuarios'], summary='Cambiar contraseña')
-    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated],url_path='change_password')
     def change_password(self, request):
         serializer = ChangePasswordSerializer(data=request.data)
         if serializer.is_valid():
@@ -101,6 +106,72 @@ class UsuarioViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def logout(self, request):
         return Response({'detail': 'Logout exitoso'}, status=status.HTTP_200_OK)
+        # ============ NUEVO MÉTODO: OVERRIDE UPDATE ============
+    
+    def update(self, request, *args, **kwargs):
+        """
+        Override de update para invalidar tokens JWT cuando se cambia el rol.
+        
+        Cuando un usuario cambia de rol, sus permisos cambian inmediatamente.
+        Pero los tokens JWT ya emitidos siguen siendo válidos hasta que expiren.
+        Este método invalida (blacklist) todos los tokens existentes del usuario
+        para forzar un nuevo login con los permisos actualizados.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # Obtener la instancia actual antes de modificarla
+        instance = self.get_object()
+        rol_anterior = instance.fk_rol_id if instance.fk_rol else None
+        
+        # Detectar si hay cambio de rol en los datos enviados
+        nuevo_rol = request.data.get('fk_rol')
+        cambio_de_rol = nuevo_rol and str(nuevo_rol) != str(rol_anterior)
+        
+        # Ejecutar la actualización normal
+        response = super().update(request, *args, **kwargs)
+        
+        # Si hubo cambio de rol exitoso, invalidar tokens
+        if cambio_de_rol and response.status_code in [200, 201]:
+            try:
+                from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
+                
+                # Obtener todos los tokens del usuario
+                tokens = OutstandingToken.objects.filter(user=instance)
+                tokens_invalidados = 0
+                
+                # Blacklist cada token
+                for token in tokens:
+                    try:
+                        token.blacklist()
+                        tokens_invalidados += 1
+                    except Exception:
+                        # Token ya estaba blacklisted o error
+                        pass
+                
+                logger.info(
+                    f"✓ Usuario {instance.run} cambió de rol {rol_anterior} → {nuevo_rol}. "
+                    f"Tokens invalidados: {tokens_invalidados}"
+                )
+                
+                # Agregar mensaje en la respuesta
+                if isinstance(response.data, dict):
+                    response.data['_security_notice'] = (
+                        'Tu rol ha cambiado. Los tokens anteriores han sido invalidados. '
+                        'Por favor, inicia sesión nuevamente.'
+                    )
+            
+            except ImportError:
+                logger.warning(
+                    "⚠️ No se pudo invalidar tokens: rest_framework_simplejwt.token_blacklist no está instalado"
+                )
+            except Exception as e:
+                logger.error(f"❌ Error al invalidar tokens del usuario {instance.run}: {e}")
+        
+        return response
+    
+    # ============ FIN NUEVO MÉTODO ============
+
 
 
 @extend_schema_view(
@@ -352,7 +423,7 @@ class EmbarazoViewSet(viewsets.ModelViewSet):
     """ViewSet para gestión de embarazos con permisos RBAC."""
     queryset = Embarazo.objects.all()
     serializer_class = EmbarazoSerializer
-    permission_classes = [IsAuthenticated, RBACPermission]
+    permission_classes = [IsAuthenticated, RBACPermission, RBACObjectPermission]
     filterset_fields = ['fk_madre']
     ordering_fields = ['semana_obstetrica', 'fecha_registro']
     
@@ -369,6 +440,14 @@ class EmbarazoViewSet(viewsets.ModelViewSet):
         else:
             self.required_permission = self.get_required_permission()
         super().check_permissions(request)
+        # ============ NUEVO MÉTODO ============
+    def validar_permiso_objeto(self, usuario, obj):
+        """
+        Validación a nivel de objeto para Matronas con restricción de turno.
+        Las Matronas solo pueden modificar embarazos de su turno.
+        """
+        return puede_modificar_registro_turno(usuario, obj)
+    # ============ FIN NUEVO MÉTODO ============
     
     @extend_schema(tags=['Maternidad'], summary='Obtener detalle de embarazo con trimestre y viabilidad')
     @action(detail=True, methods=['get'])
@@ -466,7 +545,7 @@ class PartoComplicacionViewSet(viewsets.ModelViewSet):
     """ViewSet para gestión de complicaciones de parto con permisos RBAC."""
     queryset = PartoComplicacion.objects.all()
     serializer_class = PartoComplicacionSerializer
-    permission_classes = [IsAuthenticated, RBACPermission]
+    permission_classes = [IsAuthenticated, RBACPermission, RBACObjectPermission]
     filterset_fields = ['fk_parto', 'fk_complicacion']
     
     def get_required_permission(self):
@@ -480,6 +559,13 @@ class PartoComplicacionViewSet(viewsets.ModelViewSet):
         else:
             self.required_permission = self.get_required_permission()
         super().check_permissions(request)
+        # ============ NUEVO MÉTODO ============
+    def validar_permiso_objeto(self, usuario, obj):
+        """
+        Las Matronas solo pueden modificar complicaciones de partos de su turno.
+        """
+        return puede_modificar_registro_turno(usuario, obj.fk_parto)
+    # ============ FIN NUEVO MÉTODO ============
     
     @extend_schema(
         tags=['Maternidad'], 
@@ -508,7 +594,7 @@ class PartoAnestesiaViewSet(viewsets.ModelViewSet):
     """ViewSet para gestión de anestesias de parto con permisos RBAC."""
     queryset = PartoAnestesia.objects.all()
     serializer_class = PartoAnestesiaSerializer
-    permission_classes = [IsAuthenticated, RBACPermission]
+    permission_classes = [IsAuthenticated, RBACPermission, RBACObjectPermission]
     filterset_fields = ['fk_parto', 'tipo_anestesia']
     
     def get_required_permission(self):
@@ -522,6 +608,13 @@ class PartoAnestesiaViewSet(viewsets.ModelViewSet):
         else:
             self.required_permission = self.get_required_permission()
         super().check_permissions(request)
+        # ============ NUEVO MÉTODO ============
+    def validar_permiso_objeto(self, usuario, obj):
+        """
+        Las Matronas solo pueden modificar anestesias de partos de su turno.
+        """
+        return puede_modificar_registro_turno(usuario, obj.fk_parto)
+    # ============ FIN NUEVO MÉTODO ============
     
     @extend_schema(tags=['Maternidad'], summary='Estadísticas de tipos de anestesia')
     @action(detail=False, methods=['get'])
@@ -542,7 +635,7 @@ class IVEAtencionViewSet(viewsets.ModelViewSet):
     """ViewSet para gestión de atenciones IVE con permisos RBAC."""
     queryset = IVEAtencion.objects.all()
     serializer_class = IVEAtencionDetailSerializer
-    permission_classes = [IsAuthenticated, RBACPermission]
+    permission_classes = [IsAuthenticated, RBACPermission, RBACObjectPermission]
     filterset_fields = ['fk_madre', 'fk_causal']
     ordering_fields = ['fecha_atencion']
     
@@ -557,6 +650,13 @@ class IVEAtencionViewSet(viewsets.ModelViewSet):
         else:
             self.required_permission = self.get_required_permission()
         super().check_permissions(request)
+        # ============ NUEVO MÉTODO ============
+    def validar_permiso_objeto(self, usuario, obj):
+        """
+        Las Matronas solo pueden modificar atenciones IVE de su turno.
+        """
+        return puede_modificar_registro_turno(usuario, obj)
+    # ============ FIN NUEVO MÉTODO ============
     
     def get_serializer_class(self):
         if self.action == 'retrieve':
