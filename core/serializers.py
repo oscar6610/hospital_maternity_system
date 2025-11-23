@@ -15,12 +15,12 @@ class UsuarioSerializer(serializers.ModelSerializer):
     rol_nombre = serializers.CharField(source='fk_rol.nombre_rol', read_only=True)
     password = serializers.CharField(
         write_only=True,
-        required=False,  # No requerido para actualizaciones
+        required=True, 
         style={'input_type': 'password'}
     )
     fk_rol = serializers.PrimaryKeyRelatedField(
         queryset=Rol.objects.all(),
-        required=False,  # No requerido para actualizaciones
+        required=True,
     )
 
     class Meta:
@@ -29,7 +29,12 @@ class UsuarioSerializer(serializers.ModelSerializer):
             'id_usuario', 'run', 'nombre_completo', 'fk_rol', 'rol_nombre',
             'email', 'password', 'is_active'
         ]
-        read_only_fields = ['run', 'password', 'fk_rol', 'rol_nombre', 'is_active']
+        read_only_fields = ['rol_nombre', 'is_active']
+        extra_kwargs = {
+            'password': {'write_only': True, 'required': True},
+            'fk_rol': {'required': True},
+            'run': {'required': True}
+        }
 
     def validate_run(self, value):
         """
