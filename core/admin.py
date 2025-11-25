@@ -2,96 +2,34 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.utils.translation import gettext_lazy as _
 from django.utils.html import format_html
-from .models import Usuario, Rol, Permiso, RolPermiso, RestriccionTurno
+from .models import Usuario, RestriccionTurno
 from compliance.models import TrazaMovimiento
 
 
 class UsuarioAdmin(DjangoUserAdmin):
 	fieldsets = (
 		(None, {'fields': ('run', 'password')}),
-		(_('Personal info'), {'fields': ('nombre_completo', 'email', 'fk_rol')}),
+		(_('Personal info'), {'fields': ('nombre_completo', 'email')}),
 		(_('Permissions'), {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
 		(_('Important dates'), {'fields': ('last_login', 'date_joined')}),
 	)
 	add_fieldsets = (
 		(None, {
 			'classes': ('wide',),
-			'fields': ('run', 'email', 'nombre_completo', 'fk_rol', 'password1', 'password2'),
+			'fields': ('run', 'email', 'nombre_completo', 'password1', 'password2'),
 		}),
 	)
-	list_display = ('run', 'email', 'nombre_completo', 'fk_rol', 'is_staff', 'is_active')
-	list_filter = ('fk_rol', 'is_active', 'is_staff')
+	list_display = ('run', 'email', 'nombre_completo', 'is_staff', 'is_active', 'grupo')
 	search_fields = ('run', 'email', 'nombre_completo')
 	ordering = ('run',)
+	def grupo(self, obj):
+		grupos = obj.groups.all()
+		if grupos:
+			# Si tiene solo un grupo, mostrar ese
+			return ", ".join([g.name for g in grupos])
+		return "Sin grupo"
 
-
-class RolAdmin(admin.ModelAdmin):
-	list_display = ('id_rol', 'nombre_rol', 'descripcion_corta', 'cantidad_permisos', 'fecha_creacion')
-	search_fields = ('nombre_rol', 'descripcion')
-	readonly_fields = ('fecha_creacion', 'fecha_actualizacion')
-	fieldsets = (
-		('Información General', {'fields': ('nombre_rol', 'descripcion')}),
-		('Auditoría', {'fields': ('fecha_creacion', 'fecha_actualizacion'), 'classes': ('collapse',)})
-	)
-	
-	def descripcion_corta(self, obj):
-		return obj.descripcion[:80] + '...' if len(obj.descripcion) > 80 else obj.descripcion
-	descripcion_corta.short_description = 'Descripción'
-	
-	def cantidad_permisos(self, obj):
-		return obj.permisos.count()
-	cantidad_permisos.short_description = 'Permisos'
-
-
-class PermisoAdmin(admin.ModelAdmin):
-	list_display = ('codigo_permiso', 'nombre_permiso', 'categoria_badge', 'activo', 'fecha_creacion')
-	list_filter = ('categoria', 'activo', 'fecha_creacion')
-	search_fields = ('codigo_permiso', 'nombre_permiso', 'descripcion')
-	readonly_fields = ('fecha_creacion', 'fecha_actualizacion')
-	fieldsets = (
-		('Información General', {'fields': ('codigo_permiso', 'nombre_permiso', 'descripcion', 'categoria', 'activo')}),
-		('Auditoría', {'fields': ('fecha_creacion', 'fecha_actualizacion'), 'classes': ('collapse',)}),
-	)
-	
-	def categoria_badge(self, obj):
-		colores = {
-			'catalog': '#17a2b8',
-			'maternity': '#28a745',
-			'neonatology': '#ffc107',
-			'reports': '#007bff',
-			'alerts': '#dc3545',
-			'compliance': '#6f42c1',
-			'core': '#6c757d',
-		}
-		color = colores.get(obj.categoria, '#6c757d')
-		return format_html(
-			'<span style="background-color: {}; color: white; padding: 3px 8px; border-radius: 3px;">{}</span>',
-			color,
-			obj.get_categoria_display()
-		)
-	categoria_badge.short_description = 'Categoría'
-
-
-class RolPermisoInline(admin.TabularInline):
-	model = RolPermiso
-	extra = 1
-	fields = ('fk_permiso', 'fecha_asignacion')
-	readonly_fields = ('fecha_asignacion',)
-
-
-class RolPermisoAdmin(admin.ModelAdmin):
-	list_display = ('fk_rol', 'fk_permiso', 'categoria_permiso', 'fecha_asignacion')
-	list_filter = ('fk_rol', 'fk_permiso__categoria', 'fecha_asignacion')
-	search_fields = ('fk_rol__nombre_rol', 'fk_permiso__codigo_permiso')
-	readonly_fields = ('fecha_asignacion',)
-	fieldsets = (
-		('Asignación', {'fields': ('fk_rol', 'fk_permiso')}),
-		('Auditoría', {'fields': ('fecha_asignacion',), 'classes': ('collapse',)}),
-	)
-	
-	def categoria_permiso(self, obj):
-		return obj.fk_permiso.get_categoria_display()
-	categoria_permiso.short_description = 'Categoría'
+	grupo.short_description = "Rol / Grupo"
 
 
 class TrazaMovimientoAdmin(admin.ModelAdmin):
@@ -204,8 +142,5 @@ class RestriccionTurnoAdmin(admin.ModelAdmin):
 
 # Registrar modelos
 admin.site.register(Usuario, UsuarioAdmin)
-admin.site.register(Rol, RolAdmin)
-admin.site.register(Permiso, PermisoAdmin)
-admin.site.register(RolPermiso, RolPermisoAdmin)
 admin.site.register(TrazaMovimiento, TrazaMovimientoAdmin)
 admin.site.register(RestriccionTurno, RestriccionTurnoAdmin)

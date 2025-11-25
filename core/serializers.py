@@ -1,40 +1,36 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from .models import Usuario, Rol, Permiso, RolPermiso
+from .models import Usuario
 from .utils import validar_run, normalizar_run
 
 
 
-class RolSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Rol
-        fields = '__all__'
-
-
 class UsuarioSerializer(serializers.ModelSerializer):
-    rol_nombre = serializers.CharField(source='fk_rol.nombre_rol', read_only=True)
+    grupo = serializers.SerializerMethodField()
     password = serializers.CharField(
         write_only=True,
         required=True, 
         style={'input_type': 'password'}
     )
-    fk_rol = serializers.PrimaryKeyRelatedField(
-        queryset=Rol.objects.all(),
-        required=True,
-    )
 
     class Meta:
         model = Usuario
         fields = [
-            'id_usuario', 'run', 'nombre_completo', 'fk_rol', 'rol_nombre',
-            'email', 'password', 'is_active'
+            'id_usuario', 'run', 'nombre_completo',
+            'email', 'password', 'is_active', 'date_joined', 'grupo',
         ]
-        read_only_fields = ['rol_nombre', 'is_active']
+
+        read_only_fields = ['is_active', 'date_joined']
         extra_kwargs = {
             'password': {'write_only': True, 'required': True},
-            'fk_rol': {'required': True},
             'run': {'required': True}
         }
+    def get_grupo(self, obj):
+        grupos = obj.groups.all()
+        if grupos.exists():
+            return [g.name for g in grupos]  # si quieres lista
+            # return grupos.first().name      # si quieres solo uno
+        return None
 
     def validate_run(self, value):
         """
@@ -64,72 +60,6 @@ class UsuarioSerializer(serializers.ModelSerializer):
             user.set_password(password)
             user.save()
         return user
-
-    def update(self, instance, validated_data):
-        """
-        Actualización controlada de usuarios.
-        
-        Reglas:
-        - RUN nunca se puede cambiar (ya validado)
-        - Password no se cambia aquí (usar change_password endpoint)
-        - Rol solo lo puede cambiar quien tenga 'core:user:manage'
-        - Otros campos: solo nombre_completo y email
-        """
-        # Obtener el request del contexto
-        request = self.context.get('request')
-        
-        # VALIDACIÓN: Cambio de rol requiere permiso especial
-        if 'fk_rol' in validated_data:
-            # Importar aquí para evitar dependencias circulares
-            from core.rbac_utils import tiene_permiso
-            
-            # Verificar si el usuario tiene permiso para gestionar usuarios
-            if not tiene_permiso(request.user, 'core:user:manage'):
-                raise serializers.ValidationError({
-                    'fk_rol': 'No tienes permiso para cambiar roles de usuario. Se requiere: core:user:manage'
-                })
-            
-            # Si está cambiando su propio rol, advertir pero permitir (para superusers)
-            if instance.id_usuario == request.user.id_usuario and not request.user.is_superuser:
-                raise serializers.ValidationError({
-                    'fk_rol': 'No puedes cambiar tu propio rol'
-                })
-        else:
-            # Si NO viene fk_rol en la petición, removerlo de validated_data
-            validated_data.pop('fk_rol', None)
-        
-        # Remover campos que NUNCA deben actualizarse aquí
-        validated_data.pop('run', None)  # RUN es inmutable
-        validated_data.pop('password', None)  # Password tiene su propio endpoint
-        validated_data.pop('is_active', None)  # is_active requiere permiso especial
-        validated_data.pop('is_staff', None)  # is_staff requiere permiso especial
-        validated_data.pop('is_superuser', None)  # is_superuser solo admin puede cambiar
-        
-        # Campos permitidos para actualización normal
-        allowed_fields = {'nombre_completo', 'email', 'fk_rol'}
-        
-        # Remover campos no permitidos
-        for field in list(validated_data.keys()):
-            if field not in allowed_fields:
-                validated_data.pop(field, None)
-        
-        # Ejecutar actualización
-        return super().update(instance, validated_data)
-
-
-class PermisoSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Permiso
-        fields = '__all__'
-
-
-class RolPermisoSerializer(serializers.ModelSerializer):
-    rol_nombre = serializers.CharField(source='fk_rol.nombre_rol', read_only=True)
-    permiso_codigo = serializers.CharField(source='fk_permiso.codigo_permiso', read_only=True)
-
-    class Meta:
-        model = RolPermiso
-        fields = ['id', 'fk_rol', 'rol_nombre', 'fk_permiso', 'permiso_codigo']
 
 
 class LoginSerializer(serializers.Serializer):
@@ -165,9 +95,14 @@ class ChangePasswordSerializer(serializers.Serializer):
 
 
 class UsuarioProfileSerializer(serializers.ModelSerializer):
-    rol_nombre = serializers.CharField(source='fk_rol.nombre_rol', read_only=True)
+    grupo = serializers.SerializerMethodField()
     
+    def get_grupo(self, obj):
+            grupos = obj.groups.all()
+            if grupos.exists():
+                return [g.name for g in grupos]
+            return None
     class Meta:
         model = Usuario
-        fields = ['id_usuario', 'run', 'nombre_completo', 'email', 'fk_rol', 'rol_nombre', 'is_active', 'date_joined']
-        read_only_fields = ['id_usuario', 'run', 'is_active', 'date_joined']
+        fields = ['id_usuario', 'run', 'nombre_completo', 'email', 'is_active', 'date_joined', 'grupo']
+        read_only_fields = ['id_usuario', 'run', 'is_active', 'date_joined', 'grupo']

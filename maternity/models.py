@@ -1,3 +1,4 @@
+from django.contrib.auth.models import Permission
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -134,6 +135,11 @@ class Parto(models.Model):
         verbose_name = 'Parto'
         verbose_name_plural = 'Partos'
         ordering = ['-fecha_parto']
+        permissions = [
+            ("can_generate_reports", "Puede generar reportes REM"),
+            ("can_export_data", "Puede exportar datos"),
+            ("can_manage_all_deliveries", "Puede gestionar todos los partos"),  # Para supervisores
+        ]
     
     def __str__(self):
         return f"Parto {self.id_parto} - {self.fk_madre.nombre} - {self.fecha_parto.strftime('%Y-%m-%d')}"

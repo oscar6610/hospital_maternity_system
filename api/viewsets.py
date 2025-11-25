@@ -1,9 +1,10 @@
 """
-ViewSets con Sistema RBAC y Documentación drf-spectacular
-Versión: 2.1 - Noviembre 2025
+ViewSets con Sistema RBAC Nativo de Django
+Versión: 3.0 - Noviembre 2025
+Migrado a Permissions y Groups nativos
 """
 from rest_framework import viewsets, status
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -11,14 +12,14 @@ from rest_framework_simplejwt.tokens import RefreshToken
 # Importar utilidades de drf-spectacular
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiResponse
 
-# Importar permisos RBAC
+# Importar permisos RBAC nativos
 from core.rbac_utils import RBACPermission, RBACObjectPermission, puede_modificar_registro_turno
 
 # Core
-from core.models import Usuario, Rol, Permiso, RolPermiso
+from core.models import Usuario
+from django.contrib.auth.models import Group, Permission
 from core.serializers import (
-    UsuarioSerializer, RolSerializer, PermisoSerializer, RolPermisoSerializer,
-    LoginSerializer, ChangePasswordSerializer, UsuarioProfileSerializer
+    UsuarioSerializer, LoginSerializer, ChangePasswordSerializer, UsuarioProfileSerializer
 )
 
 # Catalogs
@@ -51,29 +52,38 @@ from reports.models import ReporteREM, ReporteREMDetalle
 from reports.serializers import ReporteREMSerializer, ReporteREMDetalleSerializer
 
 
-# ============ CORE ViewSets ============
+# ============================================================
+# CORE ViewSets
+# ============================================================
 
 @extend_schema_view(
-    list=extend_schema(tags=['Usuarios'], summary='Listar usuarios', description='Requiere: core:user:manage'),
-    create=extend_schema(tags=['Usuarios'], summary='Crear usuario', description='Requiere: core:user:manage'),
+    list=extend_schema(tags=['Usuarios'], summary='Listar usuarios', description='Requiere: core.view_usuario'),
+    create=extend_schema(tags=['Usuarios'], summary='Crear usuario', description='Requiere: core.add_usuario'),
     retrieve=extend_schema(tags=['Usuarios'], summary='Obtener usuario'),
     update=extend_schema(tags=['Usuarios'], summary='Actualizar usuario'),
     partial_update=extend_schema(tags=['Usuarios'], summary='Actualizar usuario (parcial)'),
     destroy=extend_schema(tags=['Usuarios'], summary='Eliminar usuario'),
 )
 class UsuarioViewSet(viewsets.ModelViewSet):
-    """ViewSet para gestión de usuarios con permisos RBAC."""
+    """ViewSet para gestión de usuarios con permisos nativos de Django."""
     queryset = Usuario.objects.all()
     serializer_class = UsuarioSerializer
     permission_classes = [IsAuthenticated, RBACPermission]
     
     def get_required_permission(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'core:user:manage'
-        return 'core:user:manage'
+        """Retorna el permiso requerido según la acción."""
+        if self.action == 'create':
+            return 'core.add_usuario'
+        elif self.action in ['update', 'partial_update']:
+            return 'core.change_usuario'
+        elif self.action == 'destroy':
+            return 'core.delete_usuario'
+        return 'core.view_usuario'
     
     def check_permissions(self, request):
+        """Valida permisos antes de ejecutar la acción."""
         if self.action in ['me', 'change_password', 'logout']:
+            # Estas acciones no requieren permisos especiales
             return
         self.required_permission = self.get_required_permission()
         super().check_permissions(request)
@@ -90,7 +100,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @extend_schema(tags=['Usuarios'], summary='Cambiar contraseña')
-    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated],url_path='change_password')
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated], url_path='change_password')
     def change_password(self, request):
         serializer = ChangePasswordSerializer(data=request.data)
         if serializer.is_valid():
@@ -106,134 +116,64 @@ class UsuarioViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def logout(self, request):
         return Response({'detail': 'Logout exitoso'}, status=status.HTTP_200_OK)
-        # ============ NUEVO MÉTODO: OVERRIDE UPDATE ============
     
     def update(self, request, *args, **kwargs):
         """
-        Override de update para invalidar tokens JWT cuando se cambia el rol.
-        
-        Cuando un usuario cambia de rol, sus permisos cambian inmediatamente.
-        Pero los tokens JWT ya emitidos siguen siendo válidos hasta que expiren.
-        Este método invalida (blacklist) todos los tokens existentes del usuario
-        para forzar un nuevo login con los permisos actualizados.
+        Override de update para invalidar tokens JWT cuando se cambia el grupo.
         """
         import logging
         logger = logging.getLogger(__name__)
         
-        # Obtener la instancia actual antes de modificarla
         instance = self.get_object()
-        rol_anterior = instance.fk_rol_id if instance.fk_rol else None
-        
-        # Detectar si hay cambio de rol en los datos enviados
-        nuevo_rol = request.data.get('fk_rol')
-        cambio_de_rol = nuevo_rol and str(nuevo_rol) != str(rol_anterior)
+        grupos_anteriores = set(instance.groups.values_list('id', flat=True))
         
         # Ejecutar la actualización normal
         response = super().update(request, *args, **kwargs)
         
-        # Si hubo cambio de rol exitoso, invalidar tokens
-        if cambio_de_rol and response.status_code in [200, 201]:
+        # Verificar si hubo cambio de grupos
+        instance.refresh_from_db()
+        grupos_nuevos = set(instance.groups.values_list('id', flat=True))
+        cambio_de_grupos = grupos_anteriores != grupos_nuevos
+        
+        # Si hubo cambio de grupos exitoso, invalidar tokens
+        if cambio_de_grupos and response.status_code in [200, 201]:
             try:
                 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
                 
-                # Obtener todos los tokens del usuario
                 tokens = OutstandingToken.objects.filter(user=instance)
                 tokens_invalidados = 0
                 
-                # Blacklist cada token
                 for token in tokens:
                     try:
                         token.blacklist()
                         tokens_invalidados += 1
                     except Exception:
-                        # Token ya estaba blacklisted o error
                         pass
                 
                 logger.info(
-                    f"✓ Usuario {instance.run} cambió de rol {rol_anterior} → {nuevo_rol}. "
+                    f"✓ Usuario {instance.run} cambió de grupos. "
                     f"Tokens invalidados: {tokens_invalidados}"
                 )
                 
-                # Agregar mensaje en la respuesta
                 if isinstance(response.data, dict):
                     response.data['_security_notice'] = (
-                        'Tu rol ha cambiado. Los tokens anteriores han sido invalidados. '
+                        'Tus grupos han cambiado. Los tokens anteriores han sido invalidados. '
                         'Por favor, inicia sesión nuevamente.'
                     )
             
             except ImportError:
                 logger.warning(
-                    "⚠️ No se pudo invalidar tokens: rest_framework_simplejwt.token_blacklist no está instalado"
+                    "⚠️ No se pudo invalidar tokens: token_blacklist no está instalado"
                 )
             except Exception as e:
                 logger.error(f"❌ Error al invalidar tokens del usuario {instance.run}: {e}")
         
         return response
-    
-    # ============ FIN NUEVO MÉTODO ============
 
 
-
-@extend_schema_view(
-    list=extend_schema(tags=['Roles & Permisos'], summary='Listar roles'),
-    create=extend_schema(tags=['Roles & Permisos'], summary='Crear rol'),
-    retrieve=extend_schema(tags=['Roles & Permisos'], summary='Obtener rol'),
-    update=extend_schema(tags=['Roles & Permisos'], summary='Actualizar rol'),
-    destroy=extend_schema(tags=['Roles & Permisos'], summary='Eliminar rol'),
-)
-class RolViewSet(viewsets.ModelViewSet):
-    queryset = Rol.objects.all()
-    serializer_class = RolSerializer
-    permission_classes = [IsAuthenticated, RBACPermission]
-    
-    def get_required_permission(self):
-        return 'core:role:manage'
-    
-    def check_permissions(self, request):
-        self.required_permission = self.get_required_permission()
-        super().check_permissions(request)
-
-
-@extend_schema_view(
-    list=extend_schema(tags=['Roles & Permisos'], summary='Listar permisos'),
-    create=extend_schema(tags=['Roles & Permisos'], summary='Crear permiso'),
-    retrieve=extend_schema(tags=['Roles & Permisos'], summary='Obtener permiso'),
-    update=extend_schema(tags=['Roles & Permisos'], summary='Actualizar permiso'),
-    destroy=extend_schema(tags=['Roles & Permisos'], summary='Eliminar permiso'),
-)
-class PermisoViewSet(viewsets.ModelViewSet):
-    queryset = Permiso.objects.all()
-    serializer_class = PermisoSerializer
-    permission_classes = [IsAuthenticated, RBACPermission]
-    
-    def get_required_permission(self):
-        return 'core:role:manage'
-    
-    def check_permissions(self, request):
-        self.required_permission = self.get_required_permission()
-        super().check_permissions(request)
-
-
-@extend_schema_view(
-    list=extend_schema(tags=['Roles & Permisos'], summary='Listar asignaciones rol-permiso'),
-    create=extend_schema(tags=['Roles & Permisos'], summary='Asignar permiso a rol'),
-    retrieve=extend_schema(tags=['Roles & Permisos'], summary='Obtener asignación'),
-    destroy=extend_schema(tags=['Roles & Permisos'], summary='Eliminar asignación'),
-)
-class RolPermisoViewSet(viewsets.ModelViewSet):
-    queryset = RolPermiso.objects.all()
-    serializer_class = RolPermisoSerializer
-    permission_classes = [IsAuthenticated, RBACPermission]
-    
-    def get_required_permission(self):
-        return 'core:role:manage'
-    
-    def check_permissions(self, request):
-        self.required_permission = self.get_required_permission()
-        super().check_permissions(request)
-
-
-# ============ CATALOGS ViewSets ============
+# ============================================================
+# CATALOGS ViewSets
+# ============================================================
 
 @extend_schema_view(
     list=extend_schema(tags=['Catálogos'], summary='Listar nacionalidades'),
@@ -249,8 +189,8 @@ class CatNacionalidadViewSet(viewsets.ModelViewSet):
     
     def get_required_permission(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'catalog:manage'
-        return 'catalog:read'
+            return 'catalogs.change_catnacionalidad'
+        return 'catalogs.view_catnacionalidad'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()
@@ -271,8 +211,8 @@ class CatPuebloOriginarioViewSet(viewsets.ModelViewSet):
     
     def get_required_permission(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'catalog:manage'
-        return 'catalog:read'
+            return 'catalogs.change_catpueblooriginario'
+        return 'catalogs.view_catpueblooriginario'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()
@@ -293,8 +233,8 @@ class CatComplicacionPartoViewSet(viewsets.ModelViewSet):
     
     def get_required_permission(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'catalog:manage'
-        return 'catalog:read'
+            return 'catalogs.change_catcomplicacionparto'
+        return 'catalogs.view_catcomplicacionparto'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()
@@ -315,8 +255,8 @@ class CatRobsonViewSet(viewsets.ModelViewSet):
     
     def get_required_permission(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'catalog:manage'
-        return 'catalog:read'
+            return 'catalogs.change_catrobson'
+        return 'catalogs.view_catrobson'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()
@@ -337,34 +277,36 @@ class CatTipoPartoViewSet(viewsets.ModelViewSet):
     
     def get_required_permission(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'catalog:manage'
-        return 'catalog:read'
+            return 'catalogs.change_cattipoparto'
+        return 'catalogs.view_cattipoparto'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()
         super().check_permissions(request)
 
 
-# ============ MATERNITY ViewSets ============
+# ============================================================
+# MATERNITY ViewSets
+# ============================================================
 
 @extend_schema_view(
     list=extend_schema(
         tags=['Maternidad'], 
         summary='Listar madres pacientes',
-        description='Retorna lista paginada de madres. Requiere: maternity:mother:read',
+        description='Retorna lista paginada de madres. Requiere: maternity.view_madrepaciente',
         parameters=[
             OpenApiParameter('run', str, description='Filtrar por RUN'),
             OpenApiParameter('fk_nacionalidad', int, description='Filtrar por nacionalidad'),
         ]
     ),
-    create=extend_schema(tags=['Maternidad'], summary='Crear madre paciente', description='Requiere: maternity:mother:create'),
+    create=extend_schema(tags=['Maternidad'], summary='Crear madre paciente', description='Requiere: maternity.add_madrepaciente'),
     retrieve=extend_schema(tags=['Maternidad'], summary='Obtener madre paciente'),
     update=extend_schema(tags=['Maternidad'], summary='Actualizar madre paciente'),
     partial_update=extend_schema(tags=['Maternidad'], summary='Actualizar madre (parcial)'),
     destroy=extend_schema(tags=['Maternidad'], summary='Eliminar madre paciente'),
 )
 class MadrePacienteViewSet(viewsets.ModelViewSet):
-    """ViewSet para gestión de madres pacientes con permisos RBAC."""
+    """ViewSet para gestión de madres pacientes con permisos nativos."""
     queryset = MadrePaciente.objects.all()
     serializer_class = MadrePacienteSerializer
     permission_classes = [IsAuthenticated, RBACPermission]
@@ -373,16 +315,16 @@ class MadrePacienteViewSet(viewsets.ModelViewSet):
     
     def get_required_permission(self):
         if self.action == 'create':
-            return 'maternity:mother:create'
+            return 'maternity.add_madrepaciente'
         elif self.action in ['update', 'partial_update']:
-            return 'maternity:mother:update'
+            return 'maternity.change_madrepaciente'
         elif self.action == 'destroy':
-            return 'maternity:mother:update'
-        return 'maternity:mother:read'
+            return 'maternity.delete_madrepaciente'
+        return 'maternity.view_madrepaciente'
     
     def check_permissions(self, request):
         if self.action in ['embarazos', 'partos', 'ive_atenciones']:
-            self.required_permission = 'maternity:mother:read'
+            self.required_permission = 'maternity.view_madrepaciente'
         else:
             self.required_permission = self.get_required_permission()
         super().check_permissions(request)
@@ -420,7 +362,7 @@ class MadrePacienteViewSet(viewsets.ModelViewSet):
     destroy=extend_schema(tags=['Maternidad'], summary='Eliminar embarazo'),
 )
 class EmbarazoViewSet(viewsets.ModelViewSet):
-    """ViewSet para gestión de embarazos con permisos RBAC."""
+    """ViewSet para gestión de embarazos con permisos nativos."""
     queryset = Embarazo.objects.all()
     serializer_class = EmbarazoSerializer
     permission_classes = [IsAuthenticated, RBACPermission, RBACObjectPermission]
@@ -429,25 +371,21 @@ class EmbarazoViewSet(viewsets.ModelViewSet):
     
     def get_required_permission(self):
         if self.action == 'create':
-            return 'maternity:mother:create'
+            return 'maternity.add_embarazo'
         elif self.action in ['update', 'partial_update', 'destroy']:
-            return 'maternity:mother:update'
-        return 'maternity:mother:read'
+            return 'maternity.change_embarazo'
+        return 'maternity.view_embarazo'
     
     def check_permissions(self, request):
         if self.action == 'detalle':
-            self.required_permission = 'maternity:mother:read'
+            self.required_permission = 'maternity.view_embarazo'
         else:
             self.required_permission = self.get_required_permission()
         super().check_permissions(request)
-        # ============ NUEVO MÉTODO ============
+    
     def validar_permiso_objeto(self, usuario, obj):
-        """
-        Validación a nivel de objeto para Matronas con restricción de turno.
-        Las Matronas solo pueden modificar embarazos de su turno.
-        """
+        """Validación a nivel de objeto para Matronas con restricción de turno."""
         return puede_modificar_registro_turno(usuario, obj)
-    # ============ FIN NUEVO MÉTODO ============
     
     @extend_schema(tags=['Maternidad'], summary='Obtener detalle de embarazo con trimestre y viabilidad')
     @action(detail=True, methods=['get'])
@@ -467,19 +405,19 @@ class EmbarazoViewSet(viewsets.ModelViewSet):
     list=extend_schema(
         tags=['Maternidad'], 
         summary='Listar partos',
-        description='Requiere: maternity:delivery:read. Matronas con restricción de turno.',
+        description='Requiere: maternity.view_parto. Matronas con restricción de turno.',
         parameters=[
             OpenApiParameter('fk_madre', int, description='Filtrar por madre'),
             OpenApiParameter('fk_tipo_parto', int, description='Filtrar por tipo de parto'),
         ]
     ),
-    create=extend_schema(tags=['Maternidad'], summary='Crear parto', description='Requiere: maternity:delivery:create'),
+    create=extend_schema(tags=['Maternidad'], summary='Crear parto', description='Requiere: maternity.add_parto'),
     retrieve=extend_schema(tags=['Maternidad'], summary='Obtener parto (detalle completo)'),
     update=extend_schema(tags=['Maternidad'], summary='Actualizar parto'),
     destroy=extend_schema(tags=['Maternidad'], summary='Eliminar parto'),
 )
 class PartoViewSet(viewsets.ModelViewSet):
-    """ViewSet para gestión de partos con permisos RBAC y restricción de turno."""
+    """ViewSet para gestión de partos con permisos nativos y restricción de turno."""
     queryset = Parto.objects.all()
     serializer_class = PartoDetailSerializer
     permission_classes = [IsAuthenticated, RBACPermission, RBACObjectPermission]
@@ -488,24 +426,22 @@ class PartoViewSet(viewsets.ModelViewSet):
     
     def get_required_permission(self):
         if self.action == 'create':
-            return 'maternity:delivery:create'
+            return 'maternity.add_parto'
         elif self.action in ['update', 'partial_update']:
-            from core.rbac_utils import usuario_es_matrona
-            if usuario_es_matrona(self.request.user):
-                return 'maternity:delivery:update_own'
-            return 'maternity:delivery:update_all'
+            return 'maternity.change_parto'
         elif self.action == 'destroy':
-            return 'maternity:delivery:update_all'
-        return 'maternity:delivery:read'
+            return 'maternity.delete_parto'
+        return 'maternity.view_parto'
     
     def check_permissions(self, request):
         if self.action in ['complicaciones', 'anestesias']:
-            self.required_permission = 'maternity:delivery:read'
+            self.required_permission = 'maternity.view_parto'
         else:
             self.required_permission = self.get_required_permission()
         super().check_permissions(request)
     
     def validar_permiso_objeto(self, usuario, obj):
+        """Validación de restricción de turno para Matronas."""
         return puede_modificar_registro_turno(usuario, obj)
     
     def get_serializer_class(self):
@@ -542,7 +478,7 @@ class PartoViewSet(viewsets.ModelViewSet):
     destroy=extend_schema(tags=['Maternidad'], summary='Eliminar complicación'),
 )
 class PartoComplicacionViewSet(viewsets.ModelViewSet):
-    """ViewSet para gestión de complicaciones de parto con permisos RBAC."""
+    """ViewSet para gestión de complicaciones de parto con permisos nativos."""
     queryset = PartoComplicacion.objects.all()
     serializer_class = PartoComplicacionSerializer
     permission_classes = [IsAuthenticated, RBACPermission, RBACObjectPermission]
@@ -550,22 +486,19 @@ class PartoComplicacionViewSet(viewsets.ModelViewSet):
     
     def get_required_permission(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'maternity:complication:manage'
-        return 'maternity:delivery:read'
+            return 'maternity.change_partocomplicacion'
+        return 'maternity.view_partocomplicacion'
     
     def check_permissions(self, request):
         if self.action == 'por_parto':
-            self.required_permission = 'maternity:delivery:read'
+            self.required_permission = 'maternity.view_partocomplicacion'
         else:
             self.required_permission = self.get_required_permission()
         super().check_permissions(request)
-        # ============ NUEVO MÉTODO ============
+    
     def validar_permiso_objeto(self, usuario, obj):
-        """
-        Las Matronas solo pueden modificar complicaciones de partos de su turno.
-        """
+        """Las Matronas solo pueden modificar complicaciones de partos de su turno."""
         return puede_modificar_registro_turno(usuario, obj.fk_parto)
-    # ============ FIN NUEVO MÉTODO ============
     
     @extend_schema(
         tags=['Maternidad'], 
@@ -591,7 +524,7 @@ class PartoComplicacionViewSet(viewsets.ModelViewSet):
     destroy=extend_schema(tags=['Maternidad'], summary='Eliminar anestesia'),
 )
 class PartoAnestesiaViewSet(viewsets.ModelViewSet):
-    """ViewSet para gestión de anestesias de parto con permisos RBAC."""
+    """ViewSet para gestión de anestesias de parto con permisos nativos."""
     queryset = PartoAnestesia.objects.all()
     serializer_class = PartoAnestesiaSerializer
     permission_classes = [IsAuthenticated, RBACPermission, RBACObjectPermission]
@@ -599,22 +532,19 @@ class PartoAnestesiaViewSet(viewsets.ModelViewSet):
     
     def get_required_permission(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'maternity:delivery:update_all'
-        return 'maternity:delivery:read'
+            return 'maternity.change_partoanestesia'
+        return 'maternity.view_partoanestesia'
     
     def check_permissions(self, request):
         if self.action == 'estadisticas':
-            self.required_permission = 'maternity:delivery:read'
+            self.required_permission = 'maternity.view_partoanestesia'
         else:
             self.required_permission = self.get_required_permission()
         super().check_permissions(request)
-        # ============ NUEVO MÉTODO ============
+    
     def validar_permiso_objeto(self, usuario, obj):
-        """
-        Las Matronas solo pueden modificar anestesias de partos de su turno.
-        """
+        """Las Matronas solo pueden modificar anestesias de partos de su turno."""
         return puede_modificar_registro_turno(usuario, obj.fk_parto)
-    # ============ FIN NUEVO MÉTODO ============
     
     @extend_schema(tags=['Maternidad'], summary='Estadísticas de tipos de anestesia')
     @action(detail=False, methods=['get'])
@@ -632,7 +562,7 @@ class PartoAnestesiaViewSet(viewsets.ModelViewSet):
     destroy=extend_schema(tags=['Maternidad'], summary='Eliminar atención IVE'),
 )
 class IVEAtencionViewSet(viewsets.ModelViewSet):
-    """ViewSet para gestión de atenciones IVE con permisos RBAC."""
+    """ViewSet para gestión de atenciones IVE con permisos nativos."""
     queryset = IVEAtencion.objects.all()
     serializer_class = IVEAtencionDetailSerializer
     permission_classes = [IsAuthenticated, RBACPermission, RBACObjectPermission]
@@ -641,22 +571,19 @@ class IVEAtencionViewSet(viewsets.ModelViewSet):
     
     def get_required_permission(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'maternity:ive:manage'
-        return 'maternity:mother:read'
+            return 'maternity.change_iveatencion'
+        return 'maternity.view_iveatencion'
     
     def check_permissions(self, request):
         if self.action == 'acompaniamientos':
-            self.required_permission = 'maternity:mother:read'
+            self.required_permission = 'maternity.view_iveatencion'
         else:
             self.required_permission = self.get_required_permission()
         super().check_permissions(request)
-        # ============ NUEVO MÉTODO ============
+    
     def validar_permiso_objeto(self, usuario, obj):
-        """
-        Las Matronas solo pueden modificar atenciones IVE de su turno.
-        """
+        """Las Matronas solo pueden modificar atenciones IVE de su turno."""
         return puede_modificar_registro_turno(usuario, obj)
-    # ============ FIN NUEVO MÉTODO ============
     
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -680,7 +607,7 @@ class IVEAtencionViewSet(viewsets.ModelViewSet):
     destroy=extend_schema(tags=['Maternidad'], summary='Eliminar acompañamiento IVE'),
 )
 class IVEAcompanamientoViewSet(viewsets.ModelViewSet):
-    """ViewSet para gestión de acompañamientos IVE con permisos RBAC."""
+    """ViewSet para gestión de acompañamientos IVE con permisos nativos."""
     queryset = IVEAcompanamiento.objects.all()
     serializer_class = IVEAcompanamientoSerializer
     permission_classes = [IsAuthenticated, RBACPermission]
@@ -688,12 +615,12 @@ class IVEAcompanamientoViewSet(viewsets.ModelViewSet):
     
     def get_required_permission(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'maternity:ive:manage'
-        return 'maternity:mother:read'
+            return 'maternity.change_iveacompanamiento'
+        return 'maternity.view_iveacompanamiento'
     
     def check_permissions(self, request):
         if self.action == 'tipos_disponibles':
-            self.required_permission = 'maternity:mother:read'
+            self.required_permission = 'maternity.view_iveacompanamiento'
         else:
             self.required_permission = self.get_required_permission()
         super().check_permissions(request)
@@ -713,7 +640,7 @@ class IVEAcompanamientoViewSet(viewsets.ModelViewSet):
     destroy=extend_schema(tags=['Maternidad'], summary='Eliminar alta anticonceptiva'),
 )
 class AltaAnticonceptivoViewSet(viewsets.ModelViewSet):
-    """ViewSet para gestión de altas anticonceptivas con permisos RBAC."""
+    """ViewSet para gestión de altas anticonceptivas con permisos nativos."""
     queryset = AltaAnticonceptivo.objects.all()
     serializer_class = AltaAnticonceptivoSerializer
     permission_classes = [IsAuthenticated, RBACPermission]
@@ -722,35 +649,37 @@ class AltaAnticonceptivoViewSet(viewsets.ModelViewSet):
     
     def get_required_permission(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'maternity:contraceptive:manage'
-        return 'maternity:delivery:read'
+            return 'maternity.change_altaanticonceptivo'
+        return 'maternity.view_altaanticonceptivo'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()
         super().check_permissions(request)
 
 
-# ============ NEONATOLOGY ViewSets ============
+# ============================================================
+# NEONATOLOGY ViewSets
+# ============================================================
 
 @extend_schema_view(
     list=extend_schema(tags=['Neonatología'], summary='Listar recién nacidos'),
-    create=extend_schema(tags=['Neonatología'], summary='Crear recién nacido', description='Requiere: neonatal:rn:create'),
+    create=extend_schema(tags=['Neonatología'], summary='Crear recién nacido', description='Requiere: neonatology.add_reciennacido'),
     retrieve=extend_schema(tags=['Neonatología'], summary='Obtener recién nacido'),
     update=extend_schema(tags=['Neonatología'], summary='Actualizar recién nacido'),
     destroy=extend_schema(tags=['Neonatología'], summary='Eliminar recién nacido'),
 )
 class RecienNacidoViewSet(viewsets.ModelViewSet):
-    """ViewSet para gestión de recién nacidos con permisos RBAC."""
+    """ViewSet para gestión de recién nacidos con permisos nativos."""
     queryset = RecienNacido.objects.all()
     serializer_class = RecienNacidoSerializer
     permission_classes = [IsAuthenticated, RBACPermission]
     
     def get_required_permission(self):
         if self.action == 'create':
-            return 'neonatal:rn:create'
+            return 'neonatology.add_reciennacido'
         elif self.action in ['update', 'partial_update', 'destroy']:
-            return 'neonatal:rn:update_immediate'
-        return 'neonatal:rn:read'
+            return 'neonatology.change_reciennacido'
+        return 'neonatology.view_reciennacido'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()
@@ -759,21 +688,21 @@ class RecienNacidoViewSet(viewsets.ModelViewSet):
 
 @extend_schema_view(
     list=extend_schema(tags=['Neonatología'], summary='Listar atenciones inmediatas RN'),
-    create=extend_schema(tags=['Neonatología'], summary='Crear atención inmediata RN', description='Requiere: neonatal:rn:update_immediate'),
+    create=extend_schema(tags=['Neonatología'], summary='Crear atención inmediata RN', description='Requiere: neonatology.add_rnatencioninmediata'),
     retrieve=extend_schema(tags=['Neonatología'], summary='Obtener atención inmediata RN'),
     update=extend_schema(tags=['Neonatología'], summary='Actualizar atención inmediata RN'),
     destroy=extend_schema(tags=['Neonatología'], summary='Eliminar atención inmediata RN'),
 )
 class RNAtencionInmediataViewSet(viewsets.ModelViewSet):
-    """ViewSet para atención inmediata de RN con permisos RBAC."""
+    """ViewSet para atención inmediata de RN con permisos nativos."""
     queryset = RNAtencionInmediata.objects.all()
     serializer_class = RNAtencionInmediataSerializer
     permission_classes = [IsAuthenticated, RBACPermission]
     
     def get_required_permission(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'neonatal:rn:update_immediate'
-        return 'neonatal:rn:read'
+            return 'neonatology.change_rnatencioninmediata'
+        return 'neonatology.view_rnatencioninmediata'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()
@@ -782,21 +711,21 @@ class RNAtencionInmediataViewSet(viewsets.ModelViewSet):
 
 @extend_schema_view(
     list=extend_schema(tags=['Neonatología'], summary='Listar tamizajes metabólicos'),
-    create=extend_schema(tags=['Neonatología'], summary='Crear tamizaje metabólico', description='Requiere: neonatal:tamizaje:manage'),
+    create=extend_schema(tags=['Neonatología'], summary='Crear tamizaje metabólico', description='Requiere: neonatology.add_rntamizajemetabolico'),
     retrieve=extend_schema(tags=['Neonatología'], summary='Obtener tamizaje metabólico'),
     update=extend_schema(tags=['Neonatología'], summary='Actualizar tamizaje metabólico'),
     destroy=extend_schema(tags=['Neonatología'], summary='Eliminar tamizaje metabólico'),
 )
 class RNTamizajeMetabolicoViewSet(viewsets.ModelViewSet):
-    """ViewSet para tamizaje metabólico de RN con permisos RBAC."""
+    """ViewSet para tamizaje metabólico de RN con permisos nativos."""
     queryset = RNTamizajeMetabolico.objects.all()
     serializer_class = RNTamizajeMetabolicoSerializer
     permission_classes = [IsAuthenticated, RBACPermission]
     
     def get_required_permission(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'neonatal:tamizaje:manage'
-        return 'neonatal:rn:read'
+            return 'neonatology.change_rntamizajemetabolico'
+        return 'neonatology.view_rntamizajemetabolico'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()
@@ -805,21 +734,21 @@ class RNTamizajeMetabolicoViewSet(viewsets.ModelViewSet):
 
 @extend_schema_view(
     list=extend_schema(tags=['Neonatología'], summary='Listar tamizajes auditivos'),
-    create=extend_schema(tags=['Neonatología'], summary='Crear tamizaje auditivo', description='Requiere: neonatal:tamizaje:manage'),
+    create=extend_schema(tags=['Neonatología'], summary='Crear tamizaje auditivo', description='Requiere: neonatology.add_rntamizajeauditivo'),
     retrieve=extend_schema(tags=['Neonatología'], summary='Obtener tamizaje auditivo'),
     update=extend_schema(tags=['Neonatología'], summary='Actualizar tamizaje auditivo'),
     destroy=extend_schema(tags=['Neonatología'], summary='Eliminar tamizaje auditivo'),
 )
 class RNTamizajeAuditivoViewSet(viewsets.ModelViewSet):
-    """ViewSet para tamizaje auditivo de RN con permisos RBAC."""
+    """ViewSet para tamizaje auditivo de RN con permisos nativos."""
     queryset = RNTamizajeAuditivo.objects.all()
     serializer_class = RNTamizajeAuditivoSerializer
     permission_classes = [IsAuthenticated, RBACPermission]
     
     def get_required_permission(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'neonatal:tamizaje:manage'
-        return 'neonatal:rn:read'
+            return 'neonatology.change_rntamizajeauditivo'
+        return 'neonatology.view_rntamizajeauditivo'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()
@@ -828,21 +757,21 @@ class RNTamizajeAuditivoViewSet(viewsets.ModelViewSet):
 
 @extend_schema_view(
     list=extend_schema(tags=['Neonatología'], summary='Listar tamizajes de cardiopatías'),
-    create=extend_schema(tags=['Neonatología'], summary='Crear tamizaje de cardiopatía', description='Requiere: neonatal:tamizaje:manage'),
+    create=extend_schema(tags=['Neonatología'], summary='Crear tamizaje de cardiopatía', description='Requiere: neonatology.add_rntamizajecardiopatia'),
     retrieve=extend_schema(tags=['Neonatología'], summary='Obtener tamizaje de cardiopatía'),
     update=extend_schema(tags=['Neonatología'], summary='Actualizar tamizaje de cardiopatía'),
     destroy=extend_schema(tags=['Neonatología'], summary='Eliminar tamizaje de cardiopatía'),
 )
 class RNTamizajeCardiopatiaViewSet(viewsets.ModelViewSet):
-    """ViewSet para tamizaje de cardiopatías de RN con permisos RBAC."""
+    """ViewSet para tamizaje de cardiopatías de RN con permisos nativos."""
     queryset = RNTamizajeCardiopatia.objects.all()
     serializer_class = RNTamizajeCardiopatiaSerializer
     permission_classes = [IsAuthenticated, RBACPermission]
     
     def get_required_permission(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'neonatal:tamizaje:manage'
-        return 'neonatal:rn:read'
+            return 'neonatology.change_rntamizajecardiopatia'
+        return 'neonatology.view_rntamizajecardiopatia'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()
@@ -851,34 +780,36 @@ class RNTamizajeCardiopatiaViewSet(viewsets.ModelViewSet):
 
 @extend_schema_view(
     list=extend_schema(tags=['Neonatología'], summary='Listar egresos de RN'),
-    create=extend_schema(tags=['Neonatología'], summary='Crear egreso de RN', description='Requiere: neonatal:discharge:manage'),
+    create=extend_schema(tags=['Neonatología'], summary='Crear egreso de RN', description='Requiere: neonatology.add_rnegreso'),
     retrieve=extend_schema(tags=['Neonatología'], summary='Obtener egreso de RN'),
     update=extend_schema(tags=['Neonatología'], summary='Actualizar egreso de RN'),
     destroy=extend_schema(tags=['Neonatología'], summary='Eliminar egreso de RN'),
 )
 class RNEgresoViewSet(viewsets.ModelViewSet):
-    """ViewSet para egreso de RN con permisos RBAC."""
+    """ViewSet para egreso de RN con permisos nativos."""
     queryset = RNEgreso.objects.all()
     serializer_class = RNEgresoSerializer
     permission_classes = [IsAuthenticated, RBACPermission]
     
     def get_required_permission(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'neonatal:discharge:manage'
-        return 'neonatal:rn:read'
+            return 'neonatology.change_rnegreso'
+        return 'neonatology.view_rnegreso'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()
         super().check_permissions(request)
 
 
-# ============ COMPLIANCE ViewSets ============
+# ============================================================
+# COMPLIANCE ViewSets
+# ============================================================
 
 @extend_schema_view(
     list=extend_schema(
         tags=['Auditoría'], 
         summary='Listar trazas de auditoría', 
-        description='Solo lectura. Requiere: compliance:audit:read (solo supervisores)',
+        description='Solo lectura. Requiere: compliance.view_trazamovimiento (solo supervisores)',
         parameters=[
             OpenApiParameter('tipo_accion', str, description='Filtrar por tipo de acción'),
             OpenApiParameter('tabla_afectada', str, description='Filtrar por tabla afectada'),
@@ -887,72 +818,78 @@ class RNEgresoViewSet(viewsets.ModelViewSet):
     retrieve=extend_schema(tags=['Auditoría'], summary='Obtener traza de auditoría'),
 )
 class TrazaMovimientoViewSet(viewsets.ReadOnlyModelViewSet):
-    """ViewSet de solo lectura para auditoría con permisos RBAC."""
+    """ViewSet de solo lectura para auditoría con permisos nativos."""
     queryset = TrazaMovimiento.objects.all()
     serializer_class = TrazaMovimientoSerializer
     permission_classes = [IsAuthenticated, RBACPermission]
     
     def get_required_permission(self):
-        return 'compliance:audit:read'
+        return 'compliance.view_trazamovimiento'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()
         super().check_permissions(request)
 
 
-# ============ ALERTS ViewSets ============
+# ============================================================
+# ALERTS ViewSets
+# ============================================================
 
 @extend_schema_view(
-    list=extend_schema(tags=['Alertas'], summary='Listar alertas del sistema', description='Requiere: alert:read'),
-    create=extend_schema(tags=['Alertas'], summary='Crear alerta', description='Requiere: alert:resolve'),
+    list=extend_schema(tags=['Alertas'], summary='Listar alertas del sistema', description='Requiere: alerts.view_alertasistema'),
+    create=extend_schema(tags=['Alertas'], summary='Crear alerta', description='Requiere: alerts.add_alertasistema'),
     retrieve=extend_schema(tags=['Alertas'], summary='Obtener alerta'),
-    update=extend_schema(tags=['Alertas'], summary='Actualizar alerta (resolver)', description='Requiere: alert:resolve'),
+    update=extend_schema(tags=['Alertas'], summary='Actualizar alerta (resolver)', description='Requiere: alerts.change_alertasistema'),
     partial_update=extend_schema(tags=['Alertas'], summary='Actualizar alerta parcialmente'),
-    destroy=extend_schema(tags=['Alertas'], summary='Eliminar alerta', description='Requiere: alert:resolve'),
+    destroy=extend_schema(tags=['Alertas'], summary='Eliminar alerta', description='Requiere: alerts.delete_alertasistema'),
 )
 class AlertaSistemaViewSet(viewsets.ModelViewSet):
-    """ViewSet para alertas del sistema con permisos RBAC."""
+    """ViewSet para alertas del sistema con permisos nativos."""
     queryset = AlertaSistema.objects.all()
     serializer_class = AlertaSistemaSerializer
     permission_classes = [IsAuthenticated, RBACPermission]
     
     def get_required_permission(self):
         if self.action in ['update', 'partial_update']:
-            return 'alert:resolve'
-        elif self.action in ['create', 'destroy']:
-            return 'alert:resolve'
-        return 'alert:read'
+            return 'alerts.change_alertasistema'
+        elif self.action == 'create':
+            return 'alerts.add_alertasistema'
+        elif self.action == 'destroy':
+            return 'alerts.delete_alertasistema'
+        return 'alerts.view_alertasistema'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()
         super().check_permissions(request)
 
 
-# ============ REPORTS ViewSets ============
+# ============================================================
+# REPORTS ViewSets
+# ============================================================
 
 @extend_schema_view(
     list=extend_schema(
         tags=['Reportes'], 
         summary='Listar reportes REM', 
-        description='Requiere: report:generate_rem (solo supervisores)'
+        description='Requiere: reports.view_reporterem'
     ),
-    create=extend_schema(tags=['Reportes'], summary='Generar reporte REM', description='Requiere: report:generate_rem'),
+    create=extend_schema(tags=['Reportes'], summary='Generar reporte REM', description='Requiere: reports.add_reporterem'),
     retrieve=extend_schema(tags=['Reportes'], summary='Obtener reporte REM'),
     update=extend_schema(tags=['Reportes'], summary='Actualizar reporte REM'),
     destroy=extend_schema(tags=['Reportes'], summary='Eliminar reporte REM'),
 )
 class ReporteREMViewSet(viewsets.ModelViewSet):
-    """ViewSet para reportes REM con permisos RBAC."""
+    """ViewSet para reportes REM con permisos nativos."""
     queryset = ReporteREM.objects.all()
     serializer_class = ReporteREMSerializer
     permission_classes = [IsAuthenticated, RBACPermission]
     
     def get_required_permission(self):
         if self.action == 'create':
-            return 'report:generate_rem'
+            return 'reports.add_reporterem'
         elif self.action in ['update', 'partial_update', 'destroy']:
-            return 'report:generate_rem'
-        return 'report:generate_rem'
+            return 'reports.change_reporterem'
+        return 'reports.view_reporterem'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()
@@ -967,13 +904,13 @@ class ReporteREMViewSet(viewsets.ModelViewSet):
     destroy=extend_schema(tags=['Reportes'], summary='Eliminar detalle de reporte REM'),
 )
 class ReporteREMDetalleViewSet(viewsets.ModelViewSet):
-    """ViewSet para detalles de reportes REM con permisos RBAC."""
+    """ViewSet para detalles de reportes REM con permisos nativos."""
     queryset = ReporteREMDetalle.objects.all()
     serializer_class = ReporteREMDetalleSerializer
     permission_classes = [IsAuthenticated, RBACPermission]
     
     def get_required_permission(self):
-        return 'report:generate_rem'
+        return 'reports.view_reporteremdetalle'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()

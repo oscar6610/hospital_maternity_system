@@ -4,7 +4,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from core.views import CustomTokenObtainPairView
 from .viewsets import (
     # Core
-    UsuarioViewSet, RolViewSet, PermisoViewSet, RolPermisoViewSet,
+    UsuarioViewSet,
     # Catalogs
     CatNacionalidadViewSet, CatPuebloOriginarioViewSet, CatComplicacionPartoViewSet,
     CatRobsonViewSet, CatTipoPartoViewSet,
@@ -26,9 +26,6 @@ router = DefaultRouter()
 
 # ============ CORE ============
 router.register(r'usuarios', UsuarioViewSet, basename='usuario')
-router.register(r'roles', RolViewSet, basename='rol')
-router.register(r'permisos', PermisoViewSet, basename='permiso')
-router.register(r'roles-permisos', RolPermisoViewSet, basename='rol-permiso')
 
 # ============ CATALOGS ============
 router.register(r'catalogs/nacionalidades', CatNacionalidadViewSet, basename='cat-nacionalidad')
