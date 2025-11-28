@@ -210,9 +210,20 @@ class CatPuebloOriginarioViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, RBACPermission]
     
     def get_required_permission(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'catalogs.change_catpueblooriginario'
-        return 'catalogs.view_catpueblooriginario'
+            # 1. Crear: Pide 'add'
+            if self.action == 'create':
+                return 'catalogs.add_catpueblooriginario'
+                
+            # 2. Editar: Pide 'change'
+            elif self.action in ['update', 'partial_update']:
+                return 'catalogs.change_catpueblooriginario'
+                
+            # 3. Borrar: Pide 'delete' (Aquí cierras la fuga de seguridad)
+            elif self.action == 'destroy':
+                return 'catalogs.delete_catpueblooriginario'
+                
+            # 4. Ver: Pide 'view'
+            return 'catalogs.view_catpueblooriginario'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()
@@ -232,8 +243,19 @@ class CatComplicacionPartoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, RBACPermission]
     
     def get_required_permission(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+        # 1. Crear: Pide 'add'
+        if self.action == 'create':
+            return 'catalogs.add_catcomplicacionparto'
+            
+        # 2. Editar: Pide 'change'
+        elif self.action in ['update', 'partial_update']:
             return 'catalogs.change_catcomplicacionparto'
+            
+        # 3. Borrar: Pide 'delete' (Cierra la fuga de seguridad)
+        elif self.action == 'destroy':
+            return 'catalogs.delete_catcomplicacionparto'
+            
+        # 4. Ver: Pide 'view'
         return 'catalogs.view_catcomplicacionparto'
     
     def check_permissions(self, request):
@@ -254,8 +276,19 @@ class CatRobsonViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, RBACPermission]
     
     def get_required_permission(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+        # 1. Crear: Pide 'add'
+        if self.action == 'create':
+            return 'catalogs.add_catrobson'
+            
+        # 2. Editar: Pide 'change'
+        elif self.action in ['update', 'partial_update']:
             return 'catalogs.change_catrobson'
+            
+        # 3. Borrar: Pide 'delete' (Corrige la vulnerabilidad)
+        elif self.action == 'destroy':
+            return 'catalogs.delete_catrobson'
+            
+        # 4. Ver: Pide 'view'
         return 'catalogs.view_catrobson'
     
     def check_permissions(self, request):
@@ -276,14 +309,24 @@ class CatTipoPartoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, RBACPermission]
     
     def get_required_permission(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+        # 1. Crear: Pide 'add'
+        if self.action == 'create':
+            return 'catalogs.add_cattipoparto'
+            
+        # 2. Editar: Pide 'change'
+        elif self.action in ['update', 'partial_update']:
             return 'catalogs.change_cattipoparto'
+            
+        # 3. Borrar: Pide 'delete' (Corrige la vulnerabilidad)
+        elif self.action == 'destroy':
+            return 'catalogs.delete_cattipoparto'
+            
+        # 4. Ver: Pide 'view'
         return 'catalogs.view_cattipoparto'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()
         super().check_permissions(request)
-
 
 # ============================================================
 # MATERNITY ViewSets
@@ -314,19 +357,30 @@ class MadrePacienteViewSet(viewsets.ModelViewSet):
     filterset_fields = ['fk_nacionalidad', 'fk_pueblo_originario']
     
     def get_required_permission(self):
+        # 1. Acciones Estándar
         if self.action == 'create':
             return 'maternity.add_madrepaciente'
         elif self.action in ['update', 'partial_update']:
             return 'maternity.change_madrepaciente'
         elif self.action == 'destroy':
             return 'maternity.delete_madrepaciente'
+            
+        # 2. 🔴 Acciones Personalizadas (Sub-recursos) - Validación Estricta 🔴
+        elif self.action == 'embarazos':
+            return 'maternity.view_embarazo' # Exige permiso de ver embarazo
+            
+        elif self.action == 'partos':
+            return 'maternity.view_parto'    # Exige permiso de ver parto
+            
+        elif self.action == 'ive_atenciones':
+            return 'maternity.view_iveatencion' # Exige permiso de ver IVE
+            
+        # 3. Por defecto (Ver Madre)
         return 'maternity.view_madrepaciente'
     
     def check_permissions(self, request):
-        if self.action in ['embarazos', 'partos', 'ive_atenciones']:
-            self.required_permission = 'maternity.view_madrepaciente'
-        else:
-            self.required_permission = self.get_required_permission()
+        # Limpiamos esto para confiar en la lógica centralizada de arriba
+        self.required_permission = self.get_required_permission()
         super().check_permissions(request)
     
     @extend_schema(tags=['Maternidad'], summary='Obtener embarazos de una madre')
@@ -370,11 +424,18 @@ class EmbarazoViewSet(viewsets.ModelViewSet):
     ordering_fields = ['semana_obstetrica', 'fecha_registro']
     
     def get_required_permission(self):
-        if self.action == 'create':
-            return 'maternity.add_embarazo'
-        elif self.action in ['update', 'partial_update', 'destroy']:
-            return 'maternity.change_embarazo'
-        return 'maternity.view_embarazo'
+            if self.action == 'create':
+                return 'maternity.add_embarazo'
+            
+            # Bloque solo para editar
+            elif self.action in ['update', 'partial_update']:
+                return 'maternity.change_embarazo'
+                
+            # Bloque exclusivo para borrar
+            elif self.action == 'destroy':
+                return 'maternity.delete_embarazo' # <--- Ahora sí exige el permiso de borrar
+                
+            return 'maternity.view_embarazo'
     
     def check_permissions(self, request):
         if self.action == 'detalle':
@@ -425,21 +486,36 @@ class PartoViewSet(viewsets.ModelViewSet):
     ordering_fields = ['fecha_parto', 'fecha_registro']
     
     def get_required_permission(self):
+        # 1. Creación
         if self.action == 'create':
             return 'maternity.add_parto'
+        
+        # 2. Edición
         elif self.action in ['update', 'partial_update']:
             return 'maternity.change_parto'
+        
+        # 3. Eliminación
         elif self.action == 'destroy':
             return 'maternity.delete_parto'
+
+        # 4. 🔴 NUEVO: Validación estricta para sub-recursos 🔴
+        # Si piden complicaciones, exigimos el permiso de complicaciones
+        elif self.action == 'complicaciones':
+            return 'maternity.view_partocomplicacion'
+        
+        # Si piden anestesias, exigimos el permiso de anestesias
+        elif self.action == 'anestesias':
+            return 'maternity.view_partoanestesia'
+            
+        # 5. Por defecto (Listar/Ver Parto general)
         return 'maternity.view_parto'
     
     def check_permissions(self, request):
-        if self.action in ['complicaciones', 'anestesias']:
-            self.required_permission = 'maternity.view_parto'
-        else:
-            self.required_permission = self.get_required_permission()
+        # 🔴 CORREGIDO: Eliminamos el 'if' manual que causaba la fuga.
+        # Ahora confiamos 100% en la lógica de get_required_permission.
+        self.required_permission = self.get_required_permission()
         super().check_permissions(request)
-    
+
     def validar_permiso_objeto(self, usuario, obj):
         """Validación de restricción de turno para Matronas."""
         return puede_modificar_registro_turno(usuario, obj)
@@ -469,7 +545,6 @@ class PartoViewSet(viewsets.ModelViewSet):
         serializer = PartoAnestesiaSerializer(anestesias, many=True)
         return Response(serializer.data)
 
-
 @extend_schema_view(
     list=extend_schema(tags=['Maternidad'], summary='Listar complicaciones de parto'),
     create=extend_schema(tags=['Maternidad'], summary='Crear complicación de parto'),
@@ -485,9 +560,20 @@ class PartoComplicacionViewSet(viewsets.ModelViewSet):
     filterset_fields = ['fk_parto', 'fk_complicacion']
     
     def get_required_permission(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'maternity.change_partocomplicacion'
-        return 'maternity.view_partocomplicacion'
+            # 1. Crear: Pide explícitamente 'add'
+            if self.action == 'create':
+                return 'maternity.add_partocomplicacion'
+                
+            # 2. Editar: Pide 'change'
+            elif self.action in ['update', 'partial_update']:
+                return 'maternity.change_partocomplicacion'
+                
+            # 3. Borrar: Pide 'delete' (Aquí cierras la última puerta trasera)
+            elif self.action == 'destroy':
+                return 'maternity.delete_partocomplicacion'
+                
+            # 4. Ver (y acción 'por_parto'): Pide 'view'
+            return 'maternity.view_partocomplicacion'
     
     def check_permissions(self, request):
         if self.action == 'por_parto':
@@ -531,9 +617,20 @@ class PartoAnestesiaViewSet(viewsets.ModelViewSet):
     filterset_fields = ['fk_parto', 'tipo_anestesia']
     
     def get_required_permission(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'maternity.change_partoanestesia'
-        return 'maternity.view_partoanestesia'
+            # 1. Crear: Pide explícitamente 'add'
+            if self.action == 'create':
+                return 'maternity.add_partoanestesia'
+                
+            # 2. Editar: Pide 'change'
+            elif self.action in ['update', 'partial_update']:
+                return 'maternity.change_partoanestesia'
+                
+            # 3. Borrar: Pide 'delete' (Seguridad crítica)
+            elif self.action == 'destroy':
+                return 'maternity.delete_partoanestesia'
+                
+            # 4. Ver (y estadísticas): Pide 'view'
+            return 'maternity.view_partoanestesia'
     
     def check_permissions(self, request):
         if self.action == 'estadisticas':
@@ -570,15 +667,28 @@ class IVEAtencionViewSet(viewsets.ModelViewSet):
     ordering_fields = ['fecha_atencion']
     
     def get_required_permission(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+        # 1. Crear: Pide 'add'
+        if self.action == 'create':
+            return 'maternity.add_iveatencion'
+            
+        # 2. Editar: Pide 'change'
+        elif self.action in ['update', 'partial_update']:
             return 'maternity.change_iveatencion'
+            
+        # 3. Borrar: Pide 'delete' (Cierra la fuga de seguridad)
+        elif self.action == 'destroy':
+            return 'maternity.delete_iveatencion'
+            
+        # 4. Sub-recurso: Exigimos permiso específico de acompañamiento
+        elif self.action == 'acompaniamientos':
+            return 'maternity.view_iveacompanamiento'
+            
+        # 5. Ver: Pide 'view'
         return 'maternity.view_iveatencion'
     
     def check_permissions(self, request):
-        if self.action == 'acompaniamientos':
-            self.required_permission = 'maternity.view_iveatencion'
-        else:
-            self.required_permission = self.get_required_permission()
+        # Limpiamos para confiar en la lógica centralizada
+        self.required_permission = self.get_required_permission()
         super().check_permissions(request)
     
     def validar_permiso_objeto(self, usuario, obj):
@@ -594,7 +704,8 @@ class IVEAtencionViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'])
     def acompaniamientos(self, request, pk=None):
         ive = self.get_object()
-        acomps = ive.acompañamientos.all()
+        # Nota: Asegúrate de que el related_name en tu modelo sea 'acompañamientos' o 'ive_acompanamientos'
+        acomps = ive.acompañamientos.all() 
         serializer = IVEAcompanamientoSerializer(acomps, many=True)
         return Response(serializer.data)
 
@@ -614,15 +725,24 @@ class IVEAcompanamientoViewSet(viewsets.ModelViewSet):
     filterset_fields = ['fk_ive_atencion', 'tipo_profesional']
     
     def get_required_permission(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+        # 1. Crear: Pide 'add'
+        if self.action == 'create':
+            return 'maternity.add_iveacompanamiento'
+            
+        # 2. Editar: Pide 'change'
+        elif self.action in ['update', 'partial_update']:
             return 'maternity.change_iveacompanamiento'
+            
+        # 3. Borrar: Pide 'delete' (Seguridad crítica)
+        elif self.action == 'destroy':
+            return 'maternity.delete_iveacompanamiento'
+            
+        # 4. Ver (Retrieve, List y tipos_disponibles): Pide 'view'
         return 'maternity.view_iveacompanamiento'
     
     def check_permissions(self, request):
-        if self.action == 'tipos_disponibles':
-            self.required_permission = 'maternity.view_iveacompanamiento'
-        else:
-            self.required_permission = self.get_required_permission()
+        # Lógica centralizada y limpia
+        self.required_permission = self.get_required_permission()
         super().check_permissions(request)
     
     @extend_schema(tags=['Maternidad'], summary='Obtener tipos de profesionales disponibles')
@@ -630,8 +750,7 @@ class IVEAcompanamientoViewSet(viewsets.ModelViewSet):
     def tipos_disponibles(self, request):
         tipos = IVEAcompanamiento.TIPO_PROFESIONAL_CHOICES
         return Response([{'value': t[0], 'label': t[1]} for t in tipos])
-
-
+    
 @extend_schema_view(
     list=extend_schema(tags=['Maternidad'], summary='Listar altas anticonceptivas'),
     create=extend_schema(tags=['Maternidad'], summary='Crear alta anticonceptiva'),
@@ -648,9 +767,20 @@ class AltaAnticonceptivoViewSet(viewsets.ModelViewSet):
     ordering_fields = ['fecha_registro']
     
     def get_required_permission(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'maternity.change_altaanticonceptivo'
-        return 'maternity.view_altaanticonceptivo'
+            # 1. Crear: Pide permiso 'add'
+            if self.action == 'create':
+                return 'maternity.add_altaanticonceptivo'
+                
+            # 2. Editar: Pide permiso 'change'
+            elif self.action in ['update', 'partial_update']:
+                return 'maternity.change_altaanticonceptivo'
+                
+            # 3. Borrar: Pide permiso 'delete' (Esto soluciona el 404 -> 403)
+            elif self.action == 'destroy':
+                return 'maternity.delete_altaanticonceptivo'
+                
+            # 4. Ver: Pide permiso 'view'
+            return 'maternity.view_altaanticonceptivo'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()
@@ -675,11 +805,18 @@ class RecienNacidoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, RBACPermission]
     
     def get_required_permission(self):
-        if self.action == 'create':
-            return 'neonatology.add_reciennacido'
-        elif self.action in ['update', 'partial_update', 'destroy']:
-            return 'neonatology.change_reciennacido'
-        return 'neonatology.view_reciennacido'
+            if self.action == 'create':
+                return 'neonatology.add_reciennacido'
+            
+            # ✅ CORRECCIÓN: Solo update y partial_update piden 'change'
+            elif self.action in ['update', 'partial_update']:
+                return 'neonatology.change_reciennacido'
+                
+            # ✅ NUEVO BLOQUE: destroy pide explícitamente 'delete'
+            elif self.action == 'destroy':
+                return 'neonatology.delete_reciennacido'
+            
+            return 'neonatology.view_reciennacido'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()
@@ -700,9 +837,20 @@ class RNAtencionInmediataViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, RBACPermission]
     
     def get_required_permission(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'neonatology.change_rnatencioninmediata'
-        return 'neonatology.view_rnatencioninmediata'
+            # 1. Crear: Pide explícitamente 'add'
+            if self.action == 'create':
+                return 'neonatology.add_rnatencioninmediata'
+                
+            # 2. Editar: Pide 'change'
+            elif self.action in ['update', 'partial_update']:
+                return 'neonatology.change_rnatencioninmediata'
+                
+            # 3. Borrar: Pide 'delete' (Aquí cierras la brecha de seguridad)
+            elif self.action == 'destroy':
+                return 'neonatology.delete_rnatencioninmediata'
+                
+            # 4. Ver: Pide 'view'
+            return 'neonatology.view_rnatencioninmediata'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()
@@ -723,9 +871,20 @@ class RNTamizajeMetabolicoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, RBACPermission]
     
     def get_required_permission(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'neonatology.change_rntamizajemetabolico'
-        return 'neonatology.view_rntamizajemetabolico'
+            # 1. Para crear, pedimos 'add'
+            if self.action == 'create':
+                return 'neonatology.add_rntamizajemetabolico'
+                
+            # 2. Para editar, pedimos 'change'
+            elif self.action in ['update', 'partial_update']:
+                return 'neonatology.change_rntamizajemetabolico'
+                
+            # 3. Para borrar, pedimos 'delete' (¡AQUÍ ESTÁ LA SOLUCIÓN!)
+            elif self.action == 'destroy':
+                return 'neonatology.delete_rntamizajemetabolico'
+                
+            # 4. Para todo lo demás (listar/ver), pedimos 'view'
+            return 'neonatology.view_rntamizajemetabolico'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()
@@ -744,11 +903,22 @@ class RNTamizajeAuditivoViewSet(viewsets.ModelViewSet):
     queryset = RNTamizajeAuditivo.objects.all()
     serializer_class = RNTamizajeAuditivoSerializer
     permission_classes = [IsAuthenticated, RBACPermission]
-    
+        
     def get_required_permission(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'neonatology.change_rntamizajeauditivo'
-        return 'neonatology.view_rntamizajeauditivo'
+            # 1. Crear: Pide permiso 'add'
+            if self.action == 'create':
+                return 'neonatology.add_rntamizajeauditivo'
+                
+            # 2. Editar: Pide permiso 'change'
+            elif self.action in ['update', 'partial_update']:
+                return 'neonatology.change_rntamizajeauditivo'
+                
+            # 3. Borrar: Pide permiso 'delete' (Esto soluciona el 404 -> 403)
+            elif self.action == 'destroy':
+                return 'neonatology.delete_rntamizajeauditivo'
+                
+            # 4. Ver: Pide permiso 'view'
+            return 'neonatology.view_rntamizajeauditivo'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()
@@ -769,9 +939,20 @@ class RNTamizajeCardiopatiaViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, RBACPermission]
     
     def get_required_permission(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'neonatology.change_rntamizajecardiopatia'
-        return 'neonatology.view_rntamizajecardiopatia'
+            # 1. Crear: Pide permiso 'add'
+            if self.action == 'create':
+                return 'neonatology.add_rntamizajecardiopatia'
+                
+            # 2. Editar: Pide permiso 'change'
+            elif self.action in ['update', 'partial_update']:
+                return 'neonatology.change_rntamizajecardiopatia'
+                
+            # 3. Borrar: Pide permiso 'delete' (Corrige la fuga de seguridad)
+            elif self.action == 'destroy':
+                return 'neonatology.delete_rntamizajecardiopatia'
+                
+            # 4. Ver: Pide permiso 'view'
+            return 'neonatology.view_rntamizajecardiopatia'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()
@@ -792,9 +973,20 @@ class RNEgresoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, RBACPermission]
     
     def get_required_permission(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return 'neonatology.change_rnegreso'
-        return 'neonatology.view_rnegreso'
+            # 1. Crear: Pide permiso 'add'
+            if self.action == 'create':
+                return 'neonatology.add_rnegreso'
+                
+            # 2. Editar: Pide permiso 'change'
+            elif self.action in ['update', 'partial_update']:
+                return 'neonatology.change_rnegreso'
+                
+            # 3. Borrar: Pide permiso 'delete' (Corrige la fuga de seguridad)
+            elif self.action == 'destroy':
+                return 'neonatology.delete_rnegreso'
+                
+            # 4. Ver: Pide permiso 'view'
+            return 'neonatology.view_rnegreso'
     
     def check_permissions(self, request):
         self.required_permission = self.get_required_permission()
@@ -885,10 +1077,19 @@ class ReporteREMViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, RBACPermission]
     
     def get_required_permission(self):
+        # 1. Crear: Pide 'add'
         if self.action == 'create':
             return 'reports.add_reporterem'
-        elif self.action in ['update', 'partial_update', 'destroy']:
+            
+        # 2. Editar: Pide 'change'
+        elif self.action in ['update', 'partial_update']:
             return 'reports.change_reporterem'
+            
+        # 3. Borrar: Pide 'delete' (Aquí cierras la puerta trasera)
+        elif self.action == 'destroy':
+            return 'reports.delete_reporterem'
+            
+        # 4. Ver: Pide 'view'
         return 'reports.view_reporterem'
     
     def check_permissions(self, request):
