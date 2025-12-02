@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Hospital Maternity System - Fiori{% endblock %}</title>
+    
+    <!-- SAP UI5 Web Components -->
+    <script type="module">
+        import "@ui5/webcomponents/dist/Assets.js";
+        import "@ui5/webcomponents-fiori/dist/Assets.js";
+        import "@ui5/webcomponents/dist/Icon.js";
+        import "@ui5/webcomponents/dist/Button.js";
+        import "@ui5/webcomponents/dist/Input.js";
+        import "@ui5/webcomponents/dist/Card.js";
+        import "@ui5/webcomponents/dist/Title.js";
+        import "@ui5/webcomponents/dist/Label.js";
+        import "@ui5/webcomponents/dist/Dialog.js";
+        import "@ui5/webcomponents/dist/List.js";
+        import "@ui5/webcomponents/dist/StandardListItem.js";
+        import "@ui5/webcomponents/dist/Avatar.js";
+        import "@ui5/webcomponents/dist/Badge.js";
+        import "@ui5/webcomponents/dist/BusyIndicator.js";
+        import "@ui5/webcomponents/dist/MessageStrip.js";
+        import "@ui5/webcomponents/dist/Popover.js";
+        import "@ui5/webcomponents-fiori/dist/ShellBar.js";
+        import "@ui5/webcomponents-fiori/dist/ShellBarItem.js";
+        import "@ui5/webcomponents-fiori/dist/NotificationAction.js";
+        import "@ui5/webcomponents-fiori/dist/ProductSwitch.js";
+        import "@ui5/webcomponents-fiori/dist/ProductSwitchItem.js";
+    </script>
+    
+    <!-- Estilos Fiori -->
+    <link rel="stylesheet" href="{% static 'fiori/css/fiori-theme.css' %}">
+    <link rel="stylesheet" href="{% static 'fiori/css/launchpad.css' %}">
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="fiori-body">
+    
+    <!-- Shellbar Principal -->
+    <ui5-shellbar
+        id="main-shellbar"
+        primary-title="Hospital Maternity System"
+        secondary-title="{% block shellbar_subtitle %}Fiori Launchpad{% endblock %}"
+        logo="{% static 'fiori/img/sap-logo.svg' %}"
+        show-notifications
+        show-product-switch
+        show-co-pilot
+    >
+        <!-- Búsqueda Global -->
+        <ui5-input 
+            id="global-search" 
+            slot="searchField" 
+            placeholder="Buscar..."
+            icon="search">
+        </ui5-input>
+        
+        <!-- Acciones de Shellbar -->
+        <ui5-shellbar-item
+            icon="bell"
+            text="Notificaciones"
+            count="3"
+            id="notifications-btn">
+        </ui5-shellbar-item>
+        
+        <ui5-shellbar-item
+            icon="settings"
+            text="Configuración"
+            id="settings-btn">
+        </ui5-shellbar-item>
+        
+        <!-- Avatar Usuario -->
+        <ui5-avatar 
+            slot="profile"
+            id="user-avatar"
+            initials="{{ user.nombre_completo|slice:':2'|upper }}"
+            size="S"
+            color-scheme="Accent6">
+        </ui5-avatar>
+    </ui5-shellbar>
+    
+    <!-- Contenido Principal -->
+    <main class="fiori-main-content">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Dialog de Usuario -->
+    <ui5-dialog id="user-dialog" header-text="Perfil de Usuario">
+        <div class="user-profile-content">
+            <ui5-avatar 
+                initials="{{ user.nombre_completo|slice:':2'|upper }}"
+                size="L"
+                color-scheme="Accent6"
+                style="margin: 20px auto; display: block;">
+            </ui5-avatar>
+            <ui5-title level="H4" style="text-align: center;">
+                {{ user.nombre_completo }}
+            </ui5-title>
+            <ui5-label style="text-align: center; display: block; margin-top: 10px;">
+                {{ user.email }}
+            </ui5-label>
+            <ui5-label style="text-align: center; display: block; color: #6a6d70;">
+                RUN: {{ user.run }}
+            </ui5-label>
+            
+            <hr style="margin: 20px 0;">
+            
+            <div class="user-roles">
+                <ui5-label style="font-weight: bold;">Roles Asignados:</ui5-label>
+                <ui5-list>
+                    {% for group in user.groups.all %}
+                    <ui5-li>
+                        <ui5-icon name="group" slot="icon"></ui5-icon>
+                        {{ group.name }}
+                    </ui5-li>
+                    {% endfor %}
+                </ui5-list>
+            </div>
+        </div>
+        
+        <div slot="footer" style="display: flex; justify-content: flex-end; gap: 10px; padding: 10px;">
+            <ui5-button id="change-password-btn" icon="edit">
+                Cambiar Contraseña
+            </ui5-button>
+            <ui5-button id="logout-btn" design="Negative" icon="log">
+                Cerrar Sesión
+            </ui5-button>
+        </div>
+    </ui5-dialog>
+    
+    <!-- Dialog de Notificaciones -->
+    <ui5-dialog id="notifications-dialog" header-text="Notificaciones">
+        <ui5-list id="notifications-list">
+            <!-- Notificaciones dinámicas cargadas vía JS -->
+        </ui5-list>
+        <div slot="footer">
+            <ui5-button id="mark-all-read-btn">Marcar todo como leído</ui5-button>
+        </div>
+    </ui5-dialog>
+    
+    <!-- Scripts Core -->
+    <script src="{% static 'fiori/js/api-client.js' %}"></script>
+    <script src="{% static 'fiori/js/launchpad.js' %}"></script>
+    
+    {% block extra_js %}{% endblock %}
+    
+    <script>
+        // Configuración Global
+        window.FIORI_CONFIG = {
+            currentUser: {
+                id: {{ user.id_usuario }},
+                nombre: "{{ user.nombre_completo|escapejs }}",
+                run: "{{ user.run|escapejs }}",
+                groups: [{% for g in user.groups.all %}"{{ g.name|escapejs }}"{% if not forloop.last %},{% endif %}{% endfor %}]
+            },
+            csrfToken: "{{ csrf_token|escapejs }}"
+        };
+        
+        // Event Listeners del Shellbar
+        document.getElementById('user-avatar').addEventListener('click', () => {
+            document.getElementById('user-dialog').show();
+        });
+        
+        document.getElementById('notifications-btn').addEventListener('click', () => {
+            loadNotifications();
+            document.getElementById('notifications-dialog').show();
+        });
+        
+        document.getElementById('logout-btn').addEventListener('click', async () => {
+            await FioriAPI.logout();
+            window.location.href = '/fiori/login/';
+        });
+        
+        // Cargar notificaciones
+        async function loadNotifications() {
+            try {
+                const notifications = await FioriAPI.get('/alerts/alertas/?resuelto=false');
+                const list = document.getElementById('notifications-list');
+                list.innerHTML = '';
+                
+                notifications.results.forEach(notif => {
+                    const item = document.createElement('ui5-li');
+                    item.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <ui5-icon name="alert" style="color: var(--sapCriticalColor);"></ui5-icon>
+                            <div>
+                                <strong>${notif.tipo_alerta}</strong>
+                                <p style="margin: 5px 0; font-size: 0.875rem; color: #6a6d70;">
+                                    ${notif.descripcion || 'Sin descripción'}
+                                </p>
+                                <span style="font-size: 0.75rem; color: #999;">
+                                    ${new Date(notif.fecha_hora).toLocaleString()}
+                                </span>
+                            </div>
+                        </div>
+                    `;
+                    list.appendChild(item);
+                });
+            } catch (error) {
+                console.error('Error al cargar notificaciones:', error);
+            }
+        }
+    </script>
+</body>
+</html>

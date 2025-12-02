@@ -39,4 +39,7 @@ urlpatterns = [
     # ReDoc - Documentación alternativa (más limpia)
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
+
 ]
+
+urlpatterns += [path('fiori/', include('fiori.urls'))]

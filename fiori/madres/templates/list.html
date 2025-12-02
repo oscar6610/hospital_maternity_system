@@ -1,0 +1,264 @@
+{% extends "fiori/base.html" %}
+{% load static %}
+
+{% block title %}Gestión de Madres - Hospital Maternity System{% endblock %}
+{% block shellbar_subtitle %}Gestión de Madres Pacientes{% endblock %}
+
+{% block content %}
+<div class="fiori-app-container">
+    
+    <!-- Breadcrumb -->
+    <ui5-breadcrumbs>
+        <ui5-breadcrumbs-item href="/fiori/">Home</ui5-breadcrumbs-item>
+        <ui5-breadcrumbs-item>Maternidad</ui5-breadcrumbs-item>
+        <ui5-breadcrumbs-item>Madres Pacientes</ui5-breadcrumbs-item>
+    </ui5-breadcrumbs>
+    
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="page-header-content">
+            <ui5-title level="H3">
+                <ui5-icon name="patient" style="margin-right: 10px;"></ui5-icon>
+                Gestión de Madres Pacientes
+            </ui5-title>
+            <ui5-label class="page-subtitle">
+                Registro y seguimiento de madres en el sistema hospitalario
+            </ui5-label>
+        </div>
+        <div class="page-header-actions">
+            {% if perms.maternity.add_madrepaciente %}
+            <ui5-button 
+                id="create-madre-btn" 
+                design="Emphasized" 
+                icon="add">
+                Registrar Madre
+            </ui5-button>
+            {% endif %}
+            <ui5-button 
+                id="export-btn" 
+                design="Transparent" 
+                icon="excel-attachment">
+                Exportar
+            </ui5-button>
+        </div>
+    </div>
+    
+    <!-- Filtros -->
+    <ui5-panel header-text="Filtros de Búsqueda" collapsed>
+        <div class="filter-bar">
+            <div class="filter-item">
+                <ui5-label>RUN:</ui5-label>
+                <ui5-input 
+                    id="filter-run" 
+                    placeholder="Ej: 12345678-9"
+                    style="width: 200px;">
+                </ui5-input>
+            </div>
+            
+            <div class="filter-item">
+                <ui5-label>Nombre:</ui5-label>
+                <ui5-input 
+                    id="filter-nombre" 
+                    placeholder="Buscar por nombre"
+                    style="width: 250px;">
+                </ui5-input>
+            </div>
+            
+            <div class="filter-item">
+                <ui5-label>Nacionalidad:</ui5-label>
+                <ui5-select id="filter-nacionalidad" style="width: 200px;">
+                    <ui5-option value="">Todas</ui5-option>
+                    <!-- Opciones cargadas dinámicamente -->
+                </ui5-select>
+            </div>
+            
+            <ui5-button 
+                id="apply-filters-btn" 
+                design="Emphasized" 
+                icon="search">
+                Buscar
+            </ui5-button>
+            
+            <ui5-button 
+                id="clear-filters-btn" 
+                design="Transparent" 
+                icon="clear-filter">
+                Limpiar
+            </ui5-button>
+        </div>
+    </ui5-panel>
+    
+    <!-- Tabla de Madres -->
+    <div class="table-container">
+        <ui5-table 
+            id="madres-table"
+            mode="MultiSelect"
+            no-data-text="No se encontraron madres"
+            sticky="ColumnHeaders">
+            
+            <!-- Columnas -->
+            <ui5-table-column slot="columns" min-width="800" popin-text="RUN">
+                <span style="font-weight: bold;">RUN</span>
+            </ui5-table-column>
+            
+            <ui5-table-column slot="columns" min-width="1000" popin-text="Nombre Completo">
+                <span style="font-weight: bold;">Nombre Completo</span>
+            </ui5-table-column>
+            
+            <ui5-table-column slot="columns" min-width="600" popin-text="Edad">
+                <span style="font-weight: bold;">Edad</span>
+            </ui5-table-column>
+            
+            <ui5-table-column slot="columns" min-width="800" popin-text="Nacionalidad">
+                <span style="font-weight: bold;">Nacionalidad</span>
+            </ui5-table-column>
+            
+            <ui5-table-column slot="columns" min-width="800" popin-text="Fecha Registro">
+                <span style="font-weight: bold;">Fecha Registro</span>
+            </ui5-table-column>
+            
+            <ui5-table-column slot="columns" min-width="600" popin-text="Acciones">
+                <span style="font-weight: bold;">Acciones</span>
+            </ui5-table-column>
+            
+            <!-- Filas - generadas dinámicamente -->
+            
+        </ui5-table>
+        
+        <!-- Paginación -->
+        <div class="pagination-container">
+            <ui5-button 
+                id="prev-page-btn" 
+                icon="navigation-left-arrow" 
+                design="Transparent"
+                disabled>
+            </ui5-button>
+            <ui5-label id="page-info">Página 1 de 1</ui5-label>
+            <ui5-button 
+                id="next-page-btn" 
+                icon="navigation-right-arrow" 
+                design="Transparent"
+                disabled>
+            </ui5-button>
+        </div>
+    </div>
+    
+    <!-- Busy Indicator -->
+    <ui5-busy-indicator id="loading-indicator" active text="Cargando datos...">
+    </ui5-busy-indicator>
+    
+</div>
+
+<style>
+.fiori-app-container {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--sapGroup_TitleBorderColor);
+}
+
+.page-header-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.page-subtitle {
+    color: var(--sapContent_LabelColor);
+    font-size: 0.875rem;
+    display: block;
+    margin-top: 0.5rem;
+}
+
+.filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-end;
+    padding: 1rem;
+}
+
+.filter-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.table-container {
+    margin-top: 2rem;
+    position: relative;
+}
+
+.pagination-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+}
+
+#loading-indicator {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+}
+
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .filter-bar {
+        flex-direction: column;
+    }
+    
+    .filter-item {
+        width: 100%;
+    }
+}
+</style>
+
+<script type="module">
+import { FioriMadresApp } from '{% static "fiori/madres/app.js" %}';
+
+document.addEventListener('DOMContentLoaded', async () => {
+    const app = new FioriMadresApp();
+    await app.init();
+    
+    // Event Listeners
+    document.getElementById('create-madre-btn')?.addEventListener('click', () => {
+        window.location.href = '/fiori/madres/create/';
+    });
+    
+    document.getElementById('apply-filters-btn').addEventListener('click', () => {
+        app.applyFilters();
+    });
+    
+    document.getElementById('clear-filters-btn').addEventListener('click', () => {
+        app.clearFilters();
+    });
+    
+    document.getElementById('export-btn').addEventListener('click', () => {
+        app.exportToExcel();
+    });
+    
+    document.getElementById('prev-page-btn').addEventListener('click', () => {
+        app.previousPage();
+    });
+    
+    document.getElementById('next-page-btn').addEventListener('click', () => {
+        app.nextPage();
+    });
+});
+</script>
+{% endblock %}

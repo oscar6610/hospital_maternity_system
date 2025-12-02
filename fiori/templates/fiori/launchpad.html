@@ -1,0 +1,153 @@
+{% extends "fiori/base.html" %}
+{% load static %}
+
+{% block title %}Launchpad - Hospital Maternity System{% endblock %}
+
+{% block content %}
+<div class="flp-container">
+    
+    <!-- Header del Launchpad -->
+    <div class="flp-header">
+        <ui5-title level="H2">Mis Aplicaciones</ui5-title>
+        <div class="flp-actions">
+            <ui5-button id="personalize-btn" icon="action-settings" design="Transparent">
+                Personalizar
+            </ui5-button>
+            <ui5-button id="grid-view-btn" icon="grid" design="Transparent"></ui5-button>
+            <ui5-button id="list-view-btn" icon="list" design="Transparent"></ui5-button>
+        </div>
+    </div>
+    
+    <!-- Apps Recientes -->
+    <div class="flp-section" id="recent-apps-section">
+        <ui5-title level="H4" class="section-title">
+            <ui5-icon name="history" style="margin-right: 10px;"></ui5-icon>
+            Aplicaciones Recientes
+        </ui5-title>
+        <div class="flp-tiles-container" id="recent-apps-tiles">
+            <!-- Generado dinámicamente -->
+        </div>
+    </div>
+    
+    <!-- Apps por Categoría -->
+    <div id="apps-by-category">
+        <!-- Generado dinámicamente por categoría -->
+    </div>
+    
+    <!-- Apps Favoritas -->
+    <div class="flp-section" id="favorite-apps-section">
+        <ui5-title level="H4" class="section-title">
+            <ui5-icon name="favorite" style="margin-right: 10px; color: var(--sapPositiveColor);"></ui5-icon>
+            Favoritas
+        </ui5-title>
+        <div class="flp-tiles-container" id="favorite-apps-tiles">
+            <!-- Generado dinámicamente -->
+        </div>
+    </div>
+    
+</div>
+
+<!-- Dialog Personalización -->
+<ui5-dialog id="personalize-dialog" header-text="Personalizar Launchpad">
+    <div class="personalize-content">
+        <ui5-title level="H5">Selecciona las aplicaciones visibles</ui5-title>
+        <ui5-list id="apps-selector-list" mode="MultiSelect">
+            <!-- Generado dinámicamente -->
+        </ui5-list>
+        
+        <hr style="margin: 20px 0;">
+        
+        <ui5-title level="H5">Preferencias de Visualización</ui5-title>
+        <div class="preference-item">
+            <ui5-label>Agrupar por categoría</ui5-label>
+            <ui5-switch id="group-by-category-switch" checked></ui5-switch>
+        </div>
+        <div class="preference-item">
+            <ui5-label>Modo compacto</ui5-label>
+            <ui5-switch id="compact-mode-switch"></ui5-switch>
+        </div>
+    </div>
+    <div slot="footer" style="display: flex; justify-content: flex-end; gap: 10px;">
+        <ui5-button id="cancel-personalize-btn">Cancelar</ui5-button>
+        <ui5-button id="save-personalize-btn" design="Emphasized">Guardar</ui5-button>
+    </div>
+</ui5-dialog>
+
+<style>
+.flp-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.flp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.flp-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.flp-section {
+    margin-bottom: 3rem;
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--sapGroup_TitleBorderColor);
+}
+
+.flp-tiles-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .flp-tiles-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+.preference-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+}
+</style>
+
+<script type="module">
+import { FioriLaunchpad } from '{% static "fiori/js/launchpad-controller.js" %}';
+
+document.addEventListener('DOMContentLoaded', async () => {
+    const launchpad = new FioriLaunchpad();
+    await launchpad.init();
+    
+    // Event Listeners
+    document.getElementById('personalize-btn').addEventListener('click', () => {
+        launchpad.openPersonalizeDialog();
+    });
+    
+    document.getElementById('save-personalize-btn').addEventListener('click', async () => {
+        await launchpad.savePersonalization();
+    });
+    
+    document.getElementById('grid-view-btn').addEventListener('click', () => {
+        launchpad.setViewMode('grid');
+    });
+    
+    document.getElementById('list-view-btn').addEventListener('click', () => {
+        launchpad.setViewMode('list');
+    });
+});
+</script>
+{% endblock %}

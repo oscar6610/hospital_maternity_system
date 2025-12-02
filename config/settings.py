@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_filters',
 
     # Third party apps
     'rest_framework',
@@ -55,6 +56,7 @@ INSTALLED_APPS = [
     'api',
     'core',
 ]
+INSTALLED_APPS += ['fiori', 'fiori.madres']  # Agregar las apps de Fiori
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
