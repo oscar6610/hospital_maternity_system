@@ -24,6 +24,13 @@ app_name = 'fiori'
 
 urlpatterns = [
     # ==========================================
+    # AUTENTICACIÓN
+    # ==========================================
+    
+    # Login para Fiori
+    path('login/', views.login_view, name='login'),
+    
+    # ==========================================
     # VISTAS HTML (Templates)
     # ==========================================
     
@@ -35,19 +42,19 @@ urlpatterns = [
     
     # Apps de Maternidad
     path('madres/', include('fiori.madres.urls', namespace='madres')),
-    path('partos/', include('fiori.partos.urls', namespace='partos')),
+    # path('partos/', include('fiori.partos.urls', namespace='partos')),
     
-    # Apps de Neonatología
-    path('neonatologia/', include('fiori.neonatologia.urls', namespace='neonatologia')),
+    # Apps de Neonatología (comentadas por ahora)
+    # path('neonatologia/', include('fiori.neonatologia.urls', namespace='neonatologia')),
     
     # Apps de Reportes (Solo Supervisores)
-    path('reportes/', include('fiori.reportes.urls', namespace='reportes')),
+    # path('reportes/', include('fiori.reportes.urls', namespace='reportes')),
     
     # Apps de Auditoría (Solo Supervisores)
-    path('auditoria/', include('fiori.auditoria.urls', namespace='auditoria')),
+    # path('auditoria/', include('fiori.auditoria.urls', namespace='auditoria')),
     
     # Apps de Usuarios (Solo Supervisores)
-    path('usuarios/', include('fiori.usuarios.urls', namespace='usuarios')),
+    # path('usuarios/', include('fiori.usuarios.urls', namespace='usuarios')),
     
     # ==========================================
     # API REST

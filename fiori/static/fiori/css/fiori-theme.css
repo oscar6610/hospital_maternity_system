@@ -1,0 +1,172 @@
+/* fiori-theme.css */
+:root {
+    /* Colores base SAP Fiori */
+    --sapBrandColor: #0a6ed1;
+    --sapBackgroundColor: #f7f7f7;
+    --sapTextColor: #32363a;
+    --sapNeutralColor: #6a6d70;
+    --sapCriticalColor: #e9730c;
+    --sapPositiveColor: #107e3e;
+    --sapNegativeColor: #bb0000;
+    
+    /* Espaciado */
+    --sapSpacingSmall: 0.5rem;
+    --sapSpacingMedium: 1rem;
+    --sapSpacingLarge: 1.5rem;
+    
+    /* Border radius */
+    --sapBorderRadiusSmall: 0.25rem;
+    --sapBorderRadiusMedium: 0.5rem;
+    
+    /* Sombras */
+    --sapShadowLevel0: 0 0 0 1px rgba(0,0,0,0.1);
+    --sapShadowLevel1: 0 0.125rem 0.5rem 0 rgba(0,0,0,0.15);
+    --sapShadowLevel2: 0 0.625rem 1.875rem 0 rgba(0,0,0,0.15);
+}
+
+/* Estilos base del cuerpo */
+.fiori-body {
+    font-family: "72", "72full", Arial, Helvetica, sans-serif;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    color: var(--sapTextColor);
+    background-color: var(--sapBackgroundColor);
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Contenido principal */
+.fiori-main-content {
+    padding: var(--sapSpacingMedium);
+    height: calc(100vh - 64px); /* Altura total menos shellbar */
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+/* Estilos para tarjetas Fiori */
+.fiori-card {
+    background: white;
+    border-radius: var(--sapBorderRadiusMedium);
+    box-shadow: var(--sapShadowLevel1);
+    padding: var(--sapSpacingMedium);
+    margin-bottom: var(--sapSpacingMedium);
+    transition: box-shadow 0.2s ease;
+}
+
+.fiori-card:hover {
+    box-shadow: var(--sapShadowLevel2);
+}
+
+.fiori-card-header {
+    border-bottom: 1px solid #d9d9d9;
+    padding-bottom: var(--sapSpacingSmall);
+    margin-bottom: var(--sapSpacingMedium);
+}
+
+.fiori-card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--sapTextColor);
+}
+
+/* Grid system simplificado */
+.fiori-grid {
+    display: grid;
+    gap: var(--sapSpacingMedium);
+}
+
+.fiori-grid-col-2 {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.fiori-grid-col-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.fiori-grid-col-4 {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+/* Utilidades de espaciado */
+.fiori-mt-1 { margin-top: var(--sapSpacingSmall); }
+.fiori-mt-2 { margin-top: var(--sapSpacingMedium); }
+.fiori-mt-3 { margin-top: var(--sapSpacingLarge); }
+
+.fiori-mb-1 { margin-bottom: var(--sapSpacingSmall); }
+.fiori-mb-2 { margin-bottom: var(--sapSpacingMedium); }
+.fiori-mb-3 { margin-bottom: var(--sapSpacingLarge); }
+
+.fiori-p-1 { padding: var(--sapSpacingSmall); }
+.fiori-p-2 { padding: var(--sapSpacingMedium); }
+.fiori-p-3 { padding: var(--sapSpacingLarge); }
+
+/* Estados y colores */
+.fiori-text-success {
+    color: var(--sapPositiveColor);
+}
+
+.fiori-text-warning {
+    color: var(--sapCriticalColor);
+}
+
+.fiori-text-error {
+    color: var(--sapNegativeColor);
+}
+
+.fiori-text-info {
+    color: var(--sapBrandColor);
+}
+
+/* Badge personalizado */
+.fiori-badge {
+    display: inline-block;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.fiori-badge-success {
+    background-color: rgba(16, 126, 62, 0.1);
+    color: var(--sapPositiveColor);
+}
+
+.fiori-badge-warning {
+    background-color: rgba(233, 115, 12, 0.1);
+    color: var(--sapCriticalColor);
+}
+
+.fiori-badge-error {
+    background-color: rgba(187, 0, 0, 0.1);
+    color: var(--sapNegativeColor);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .fiori-grid-col-4 {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .fiori-grid-col-3,
+    .fiori-grid-col-4 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .fiori-grid-col-2,
+    .fiori-grid-col-3,
+    .fiori-grid-col-4 {
+        grid-template-columns: 1fr;
+    }
+    
+    .fiori-main-content {
+        padding: var(--sapSpacingSmall);
+    }
+}

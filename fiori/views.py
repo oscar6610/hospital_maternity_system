@@ -5,9 +5,48 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
+from django.contrib.auth import authenticate, login as django_login
+from django.views.decorators.csrf import csrf_exempt
 from .models import FioriApp, UserAppConfig, UserFioriPreferences
 from django.db.models import Q
 from django.db import models
+
+
+def login_view(request):
+    """
+    Vista de login para Fiori Launchpad.
+    
+    Si el usuario ya está autenticado, redirige al launchpad.
+    Si no, muestra el formulario de login.
+    """
+    # Si ya está autenticado, redirigir al launchpad
+    if request.user.is_authenticated:
+        return redirect('fiori:launchpad')
+    
+    # Si es POST, procesar login
+    if request.method == 'POST':
+        run = request.POST.get('run')
+        password = request.POST.get('password')
+        
+        # Autenticar usuario
+        user = authenticate(request, run=run, password=password)
+        
+        if user is not None:
+            django_login(request, user)
+            
+            # Redirigir a la página solicitada o al launchpad
+            next_url = request.GET.get('next', '/fiori/')
+            return redirect(next_url)
+        else:
+            # Error de autenticación
+            context = {
+                'error': 'Credenciales inválidas. Por favor, verifica tu RUN y contraseña.',
+                'run': run
+            }
+            return render(request, 'fiori/login.html', context)
+    
+    # Si es GET, mostrar formulario
+    return render(request, 'fiori/login.html')
 
 
 @login_required

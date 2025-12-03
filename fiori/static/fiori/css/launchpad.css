@@ -1,0 +1,313 @@
+/* launchpad.css */
+/* Layout del Launchpad */
+.launchpad-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+    padding: 1.5rem;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+/* Grupos de tiles */
+.launchpad-group {
+    margin-bottom: 2.5rem;
+}
+
+.launchpad-group-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--sapTextColor);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--sapBrandColor);
+}
+
+/* Tile (baldosas) individuales */
+.launchpad-tile {
+    background: white;
+    border-radius: var(--sapBorderRadiusMedium);
+    box-shadow: var(--sapShadowLevel1);
+    padding: 1.5rem;
+    height: 100%;
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: 1px solid transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+.launchpad-tile:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--sapShadowLevel2);
+    border-color: var(--sapBrandColor);
+}
+
+.launchpad-tile:active {
+    transform: translateY(-2px);
+}
+
+.launchpad-tile-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.launchpad-tile-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--sapBorderRadiusMedium);
+    background: linear-gradient(135deg, #0a6ed1 0%, #0854a0 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.25rem;
+}
+
+.launchpad-tile-badge {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+}
+
+.launchpad-tile-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--sapTextColor);
+    margin-bottom: 0.5rem;
+    line-height: 1.3;
+}
+
+.launchpad-tile-subtitle {
+    font-size: 0.875rem;
+    color: var(--sapNeutralColor);
+    margin-bottom: 1rem;
+    line-height: 1.4;
+    flex-grow: 1;
+}
+
+.launchpad-tile-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px solid #eaeaea;
+}
+
+.launchpad-tile-status {
+    font-size: 0.75rem;
+    color: var(--sapNeutralColor);
+}
+
+/* Variantes de tiles */
+.launchpad-tile-critical {
+    border-left: 4px solid var(--sapCriticalColor);
+}
+
+.launchpad-tile-important {
+    border-left: 4px solid var(--sapNegativeColor);
+}
+
+.launchpad-tile-success {
+    border-left: 4px solid var(--sapPositiveColor);
+}
+
+/* Tile sizes */
+.launchpad-tile-size-1x1 {
+    grid-column: span 1;
+    grid-row: span 1;
+}
+
+.launchpad-tile-size-2x1 {
+    grid-column: span 2;
+    grid-row: span 1;
+}
+
+.launchpad-tile-size-2x2 {
+    grid-column: span 2;
+    grid-row: span 2;
+}
+
+/* Dashboard widgets */
+.dashboard-widget {
+    background: white;
+    border-radius: var(--sapBorderRadiusMedium);
+    box-shadow: var(--sapShadowLevel1);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.dashboard-widget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.dashboard-widget-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--sapTextColor);
+    margin: 0;
+}
+
+.dashboard-widget-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* KPI Cards */
+.kpi-card {
+    text-align: center;
+    padding: 2rem 1.5rem;
+}
+
+.kpi-value {
+    font-size: 2.5rem;
+    font-weight: 300;
+    color: var(--sapTextColor);
+    margin-bottom: 0.5rem;
+    line-height: 1;
+}
+
+.kpi-label {
+    font-size: 0.875rem;
+    color: var(--sapNeutralColor);
+    margin-bottom: 1rem;
+}
+
+.kpi-trend {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.75rem;
+}
+
+.kpi-trend-positive {
+    background-color: rgba(16, 126, 62, 0.1);
+    color: var(--sapPositiveColor);
+}
+
+.kpi-trend-negative {
+    background-color: rgba(187, 0, 0, 0.1);
+    color: var(--sapNegativeColor);
+}
+
+/* Perfil de usuario */
+.user-profile-content {
+    padding: 1rem;
+    max-width: 400px;
+}
+
+.user-roles {
+    margin-top: 1.5rem;
+}
+
+.user-roles ui5-list {
+    margin-top: 0.5rem;
+}
+
+/* Barra de búsqueda global */
+#global-search {
+    width: 300px;
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.launchpad-tile {
+    animation: fadeIn 0.3s ease-out;
+}
+
+.launchpad-tile:nth-child(odd) {
+    animation-delay: 0.05s;
+}
+
+.launchpad-tile:nth-child(even) {
+    animation-delay: 0.1s;
+}
+
+/* Estados de carga */
+.launchpad-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    color: var(--sapNeutralColor);
+}
+
+/* Modo oscuro (opcional) */
+@media (prefers-color-scheme: dark) {
+    .fiori-body {
+        background-color: #12171c;
+        color: #eaeaea;
+    }
+    
+    .launchpad-tile,
+    .dashboard-widget {
+        background: #1e262e;
+        color: #eaeaea;
+    }
+    
+    .launchpad-tile-title {
+        color: #eaeaea;
+    }
+    
+    .launchpad-tile-subtitle {
+        color: #a9b2bc;
+    }
+}
+
+/* Responsive Launchpad */
+@media (max-width: 1024px) {
+    .launchpad-container {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        padding: 1rem;
+    }
+    
+    .launchpad-tile-size-2x1,
+    .launchpad-tile-size-2x2 {
+        grid-column: span 1;
+    }
+}
+
+@media (max-width: 768px) {
+    .launchpad-container {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    #global-search {
+        width: 200px;
+    }
+}
+
+@media (max-width: 480px) {
+    .launchpad-tile {
+        min-height: 160px;
+        padding: 1rem;
+    }
+    
+    .dashboard-widget-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .dashboard-widget-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}
