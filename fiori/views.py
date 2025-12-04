@@ -10,6 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from .models import FioriApp, UserAppConfig, UserFioriPreferences
 from django.db.models import Q
 from django.db import models
+from django.contrib.auth import logout as django_logout
 
 
 def login_view(request):
@@ -25,8 +26,15 @@ def login_view(request):
     
     # Si es POST, procesar login
     if request.method == 'POST':
-        run = request.POST.get('run')
-        password = request.POST.get('password')
+        run = request.POST.get('run', '').strip()
+        password = request.POST.get('password', '')
+        
+        if not run or not password:
+            context = {
+                'error': 'Por favor, ingresa tu RUN y contraseña.',
+                'run': run
+            }
+            return render(request, 'fiori/login.html', context)
         
         # Autenticar usuario
         user = authenticate(request, run=run, password=password)
@@ -48,6 +56,14 @@ def login_view(request):
     # Si es GET, mostrar formulario
     return render(request, 'fiori/login.html')
 
+
+@login_required
+def logout_view(request):
+    """
+    Vista de logout.
+    """
+    django_logout(request)
+    return redirect('fiori:login')
 
 @login_required
 def launchpad(request):

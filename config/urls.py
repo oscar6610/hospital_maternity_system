@@ -21,6 +21,7 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
     SpectacularRedocView
 )
+from django.shortcuts import redirect
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -38,6 +39,8 @@ urlpatterns = [
     
     # ReDoc - Documentación alternativa (más limpia)
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+
+    path('', lambda request: redirect('fiori:login')),  # Agregar URLs de autenticación
 
 
 ]
