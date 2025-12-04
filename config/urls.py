@@ -37,12 +37,11 @@ urlpatterns = [
     # Swagger UI - Interfaz interactiva
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     
-    # ReDoc - Documentación alternativa (más limpia)
-    path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+# 1. INCLUIR las URLs de 'fiori' PRIMERO para que el namespace esté disponible
+    path('fiori/', include('fiori.urls')), 
 
-    path('', lambda request: redirect('fiori:login')),  # Agregar URLs de autenticación
+    # 2. Luego, redirigir la ruta raíz ('') a la URL nombrada 'fiori:login'
+    path('', lambda request: redirect('fiori:login')),
 
 
 ]
-
-urlpatterns += [path('fiori/', include('fiori.urls'))]
